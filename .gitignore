@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+reports/
+*.egg-info/
+build/
+dist/
+.claude/
+.idea/

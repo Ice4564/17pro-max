@@ -1,0 +1,4 @@
+aiohttp>=3.9
+pillow>=10      # compare profile pictures across accounts (optional)
+# optional, for --tor / socks proxies:
+# aiohttp-socks>=0.8

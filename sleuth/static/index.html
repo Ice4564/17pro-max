@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sleuth</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
+<script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+.hero { padding:30px 0 6px; }
+.hero h1 { font-size:26px; margin:0 0 6px; letter-spacing:-.2px; }
+.hero p { margin:0; color:var(--muted); max-width:720px; }
+
+form.search { margin-top:18px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:var(--shadow); }
+.opts { display:flex; gap:8px 18px; flex-wrap:wrap; align-items:center; margin-top:12px; font-size:14px; color:var(--muted); }
+.opts label { display:flex; align-items:center; gap:6px; }
+.tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+
+.status { margin:20px 0 14px; display:none; }
+.status.show { display:block; }
+.stats { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:12px; }
+
+.layout { display:none; grid-template-columns:minmax(0,1fr) 340px; gap:16px; align-items:start; padding-bottom:60px; }
+.layout.show { display:grid; }
+.side { position:sticky; top:12px; display:flex; flex-direction:column; gap:12px; }
+
+.idrow { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line); }
+.idrow:first-of-type { border-top:0; }
+.idrow .t { min-width:0; flex:1; }
+.idrow a { color:var(--accent); text-decoration:none; word-break:break-all; font-size:14px; font-weight:600; }
+.idrow .ev { font-size:12px; color:var(--muted); }
+
+.avatars { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.avatars a { display:block; width:52px; height:52px; border-radius:50%; overflow:hidden; border:2px solid var(--line); background:var(--panel2); }
+.avatars img { width:100%; height:100%; object-fit:cover; display:block; }
+.facts dt { font-size:12px; color:var(--muted); margin-top:10px; }
+.facts dd { margin:2px 0 0; font-size:14px; word-break:break-word; }
+.facts dd a { color:var(--accent); }
+.dorks { display:flex; flex-wrap:wrap; gap:6px; }
+
+.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.toolbar .spacer { flex:1; }
+.filter { height:36px; border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:0 10px; min-width:140px; flex:1 1 140px; max-width:240px; }
+
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0; box-shadow:var(--shadow); animation:pop .18s ease-out; }
+.card.is-linked { border-color:var(--link); box-shadow:0 0 0 1px var(--link) inset; }
+.card.has-archive { border-color:var(--warn); }
+@keyframes pop { from { opacity:0; transform:translateY(4px); } }
+.card .head { display:flex; gap:10px; align-items:center; }
+.ico { width:36px; height:36px; border-radius:9px; background:var(--panel2); flex:none; display:grid; place-items:center; overflow:hidden; font-weight:700; color:var(--muted); }
+.ico img { width:20px; height:20px; }
+.card h3 { margin:0; font-size:15px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.card a.url { display:block; color:var(--accent); font-size:13px; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card a.url:hover { text-decoration:underline; }
+.card .who { font-size:12px; color:var(--muted); margin-top:8px; }
+.card .evidence { font-size:12px; color:var(--link); margin-top:8px; }
+.card .hint { font-size:12px; color:var(--warn); margin-top:6px; }
+.card dl { display:grid; grid-template-columns:max-content 1fr; gap:3px 10px; margin:10px 0 0; font-size:13px; }
+.card dt { color:var(--muted); } .card dd { margin:0; word-break:break-word; }
+.card .avatar { width:52px; height:52px; border-radius:50%; object-fit:cover; float:right; margin-left:10px; }
+.card.compact { padding:10px 14px; }
+.card .err { font-size:12px; color:var(--muted); margin-top:4px; }
+.card .actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+
+@media (max-width:980px) {
+  .layout.show { grid-template-columns:1fr; }
+  .side { position:static; order:-1; }
+}
+@media (max-width:640px) {
+  .stats { grid-template-columns:repeat(2,1fr); }
+  .search .btn.primary { width:100%; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
+      Sleuth
+    </div>
+    <nav><a href="/" class="on">ค้น Username</a><a href="/scan">สแกนเป้าหมาย</a></nav>
+    <div class="meta" id="meta"></div>
+    <button class="theme-btn" id="themeBtn" type="button" title="สลับธีม" aria-label="สลับธีม"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>ตามหาบัญชีจาก username</h1>
+    <p>ค้นบนเกือบ 100 เว็บพร้อมกัน ดึงข้อมูลโปรไฟล์ แล้วตามลิงก์ที่เจ้าของใส่ไว้ไปหา Instagram, Facebook, TikTok, X ของคนเดียวกัน พร้อมเทียบรูปโปรไฟล์</p>
+  </section>
+
+  <form class="search" id="form" autocomplete="off">
+    <div class="row">
+      <label class="q">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
+        <input id="u" placeholder="username เช่น torvalds (ใส่ได้หลายชื่อ คั่นด้วยช่องว่าง)" required spellcheck="false">
+      </label>
+      <button class="btn primary" id="go" type="submit">ค้นหา</button>
+    </div>
+    <div class="opts">
+      <label>ค้นต่อจากบัญชีที่เจอ
+        <select id="depth"><option value="0">ปิด</option><option value="1" selected>1 ชั้น</option><option value="2">2 ชั้น</option></select>
+      </label>
+      <label><input type="checkbox" id="variants"> ลองชื่อใกล้เคียง</label>
+      <label><input type="checkbox" id="archive" checked> ค้น IG/FB/TikTok ใน archive.org</label>
+      <label><input type="checkbox" id="avatars" checked> เทียบรูปโปรไฟล์</label>
+      <label>timeout
+        <select id="timeout"><option>8</option><option selected>12</option><option>20</option><option>30</option></select> วิ
+      </label>
+      <span id="tagHint">หมวด: ทุกเว็บ</span>
+    </div>
+    <div class="tags" id="tags"></div>
+  </form>
+
+  <section class="status" id="status">
+    <div class="bar"><i id="bar"></i></div>
+    <div class="stats">
+      <div class="stat ok"><b id="sFound">0</b><span>พบบัญชี</span></div>
+      <div class="stat link"><b id="sLinked">0</b><span>เชื่อมโยงจากโปรไฟล์</span></div>
+      <div class="stat warn"><b id="sManual">0</b><span>ต้องตรวจเอง (IG/FB/TikTok)</span></div>
+      <div class="stat"><b id="sNot">0</b><span>ไม่พบ</span></div>
+      <div class="stat"><b id="sDone">0</b><span>ตรวจแล้ว</span></div>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+
+  <div class="layout" id="layout">
+    <section>
+      <div class="panel" id="identity" hidden>
+        <h2>บัญชีที่น่าจะเป็นคนเดียวกัน</h2>
+        <p class="sub">สูง = เจ้าของลิงก์ไว้เอง / รูปเหมือนบัญชีที่ยืนยันแล้ว / คุณยืนยัน · กลาง = ชื่อจริงหรือรูปตรงกับบัญชีอื่น · ต่ำ = แค่ username ตรงกัน</p>
+        <div id="idList"></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg" id="seg">
+          <button type="button" data-f="found" aria-pressed="true">พบ</button>
+          <button type="button" data-f="manual" aria-pressed="false">ตรวจเอง</button>
+          <button type="button" data-f="unknown" aria-pressed="false">ตรวจไม่ได้</button>
+          <button type="button" data-f="not_found" aria-pressed="false">ไม่พบ</button>
+          <button type="button" data-f="all" aria-pressed="false">ทั้งหมด</button>
+        </div>
+        <input class="filter" id="filter" placeholder="กรองชื่อเว็บ...">
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-export="html">รายงาน HTML</button>
+        <button type="button" class="btn ghost" data-export="json">JSON</button>
+        <button type="button" class="btn ghost" data-export="csv">CSV</button>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="side">
+      <div class="panel" id="dossier">
+        <h2>แฟ้มบุคคล</h2>
+        <p class="sub" id="dossierSub">รวบรวมจากบัญชีที่พบ</p>
+        <div class="avatars" id="dAvatars"></div>
+        <dl class="facts" id="dFacts"></dl>
+      </div>
+      <div class="panel">
+        <h2>ค้นต่อด้วย Google</h2>
+        <p class="sub">หาโพสต์หรือบัญชีที่ระบบตรวจตรงไม่ได้</p>
+        <div class="dorks" id="dorks"></div>
+      </div>
+      <div class="panel" id="disc" hidden>
+        <h2>username ที่เจอเพิ่ม</h2>
+        <div id="discList"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+<footer>ใช้กับข้อมูลสาธารณะเท่านั้น · username เดียวกันไม่จำเป็นต้องเป็นคนเดียวกัน ควรตรวจสอบก่อนนำไปใช้</footer>
+
+<script src="/static/common.js"></script>
+<script>
+const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
+                identity: [], showAllId: false, usernames: [] };
+const LABEL = { found: "พบ", not_found: "ไม่พบ", unknown: "ตรวจไม่ได้", manual: "ตรวจเอง" };
+const CONF = { high: "สูง", medium: "กลาง", low: "ต่ำ" };
+const INFO_LABEL = { name: "ชื่อ", username: "username", bio: "bio", location: "ที่อยู่", website: "เว็บไซต์",
+  created: "สมัครเมื่อ", followers: "ผู้ติดตาม", following: "กำลังติดตาม", twitter: "Twitter", github: "GitHub",
+  archived: "archive.org", archive_url: "หน้าที่เก็บไว้" };
+const key = (r) => (r.site + "|" + r.username).toLowerCase();
+
+async function init() {
+  const r = await fetch("/api/sites").then((r) => r.json());
+  r.sites.forEach((s) => (state.sites[s.name] = s));
+  $("meta").textContent = `v${r.version} · ${r.sites.length} เว็บ`;
+  for (const t of r.tags) {
+    const b = el("button", { type: "button", class: "tag", "aria-pressed": "false" }, "#" + t);
+    b.onclick = () => {
+      state.tags.has(t) ? state.tags.delete(t) : state.tags.add(t);
+      b.setAttribute("aria-pressed", state.tags.has(t));
+      const n = state.tags.size ? r.sites.filter((s) => s.tags.some((x) => state.tags.has(x))).length : r.sites.length;
+      $("tagHint").textContent = state.tags.size ? `หมวด: ${[...state.tags].join(", ")} (${n} เว็บ)` : "หมวด: ทุกเว็บ";
+    };
+    $("tags").append(b);
+  }
+}
+
+function setRunning(on) {
+  $("go").textContent = on ? "หยุด" : "ค้นหา";
+  $("go").classList.toggle("stop", on);
+  $("u").disabled = on;
+}
+
+function stop(msg) {
+  if (state.es) { state.es.close(); state.es = null; }
+  setRunning(false);
+  if (msg) $("note").textContent = msg;
+  renderIdentity(); renderDossier();
+}
+
+function start() {
+  const u = $("u").value.trim();
+  if (!u) return;
+  state.results = new Map(); state.total = 0; state.identity = []; state.showAllId = false;
+  state.usernames = u.replace(/,/g, " ").split(/\s+/).filter(Boolean).map((x) => x.replace(/^@/, ""));
+  $("grid").replaceChildren(); $("discList").replaceChildren();
+  $("disc").hidden = true; $("identity").hidden = true;
+  $("status").classList.add("show"); $("layout").classList.add("show");
+  $("note").textContent = "กำลังเริ่ม...";
+  renderDorks(); renderDossier(); updateStats();
+  const p = new URLSearchParams({ u, depth: $("depth").value, timeout: $("timeout").value, tags: [...state.tags].join(","),
+    variants: $("variants").checked ? "1" : "0", archive: $("archive").checked ? "1" : "0", avatars: $("avatars").checked ? "1" : "0" });
+  const es = new EventSource("/api/search?" + p);
+  state.es = es; setRunning(true);
+  es.onmessage = (m) => handle(JSON.parse(m.data));
+  es.onerror = () => { if (state.es) stop(state.results.size ? "การเชื่อมต่อถูกตัด" : "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); };
+}
+
+let dossierTimer = null;
+function handle(ev) {
+  if (ev.type === "start") {
+    state.total += ev.total;
+    $("note").textContent = ev.source ? `กำลังค้น ${ev.username} (จาก ${ev.source})` : `กำลังค้น ${ev.username} บน ${ev.total} เว็บ`;
+  } else if (ev.type === "progress") {
+    $("note").textContent = ev.message;
+  } else if (ev.type === "discovered") {
+    $("disc").hidden = false;
+    $("discList").append(el("span", { class: "chip", title: ev.source }, ev.username));
+  } else if (ev.type === "result") {
+    const k = key(ev), old = state.results.get(k);
+    if (ev.status === "manual" && old && old.status === "found") return;
+    state.results.set(k, ev);
+    if (ev.status === "illegal") return;
+    const node = document.querySelector(`[data-key="${CSS.escape(k)}"]`);
+    if (node) node.replaceWith(card(ev));
+    else if (matches(ev)) $("grid").append(card(ev));
+    updateStats();
+    if (!dossierTimer) dossierTimer = setTimeout(() => { dossierTimer = null; renderDossier(); }, 600);
+  } else if (ev.type === "done") {
+    const s = ev.stats;
+    state.identity = ev.identity || [];
+    stop(`เสร็จใน ${ev.elapsed} วินาที · พบ ${s.found} บัญชี (เชื่อมโยงจากโปรไฟล์ ${s.linked}) จาก ${s.usernames} username`);
+    $("bar").style.width = "100%";
+    render();
+  }
+}
+
+function updateStats() {
+  const c = { found: 0, not_found: 0, unknown: 0, illegal: 0, manual: 0, linked: 0 };
+  for (const r of state.results.values()) { c[r.status]++; if (r.linked && r.status === "found") c.linked++; }
+  $("sFound").textContent = c.found; $("sNot").textContent = c.not_found;
+  $("sManual").textContent = c.manual; $("sLinked").textContent = c.linked;
+  const n = [...state.results.values()].filter((r) => !r.linked).length;
+  $("sDone").textContent = `${Math.min(n, state.total)}/${state.total || "?"}`;
+  $("bar").style.width = state.total ? (100 * Math.min(n, state.total) / state.total) + "%" : "0";
+}
+
+function matches(r) {
+  if (r.status === "illegal") return false;
+  if (state.filter !== "all" && r.status !== state.filter) return false;
+  return !state.text || r.site.toLowerCase().includes(state.text) || r.username.toLowerCase().includes(state.text);
+}
+
+// The user opened a manual link and saw the profile exists.
+function confirmManual(r) {
+  const c = { ...r, status: "found", linked: true, evidence: [...(r.evidence || []), "คุณเปิดตรวจและยืนยันเอง"], error: null };
+  state.results.set(key(c), c);
+  state.identity = [{ site: c.site, username: c.username, url: c.url, confidence: "high", evidence: c.evidence, linked: true, depth: c.depth },
+                    ...state.identity.filter((i) => key(i) !== key(c))];
+  updateStats(); render(); renderIdentity(); renderDossier();
+}
+
+function card(r) {
+  const site = state.sites[r.site] || {};
+  const ico = el("div", { class: "ico" }, r.site[0]);
+  const main = safeUrl(site.main);
+  if (main) {
+    const img = el("img", { src: new URL("/favicon.ico", main).href, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+    img.onload = () => ico.replaceChildren(img);
+  }
+  const info = r.info || {};
+  const badges = [el("span", { class: "badge " + r.status }, LABEL[r.status])];
+  if (r.linked && r.status === "found") badges.unshift(el("span", { class: "badge linked" }, "เชื่อมโยง"));
+  if (info.archived && r.status === "manual") badges.push(el("span", { class: "badge archive" }, "มีใน archive"));
+  const title = el("h3", {}, r.site, ...badges);
+  const link = el("a", { class: "url", href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer" }, r.url);
+  const cls = "card" + (r.status === "found" ? "" : " compact") + (r.linked ? " is-linked" : "") + (info.archived && r.status === "manual" ? " has-archive" : "");
+  const c = el("article", { class: cls, "data-key": key(r) }, el("div", { class: "head" }, ico, el("div", { style: "min-width:0" }, title, link)));
+
+  if (r.status === "found") {
+    const dl = el("dl");
+    for (const [k, v] of Object.entries(info)) {
+      if (k === "avatar") continue;
+      const dd = el("dd");
+      safeUrl(v) ? dd.append(el("a", { href: v, target: "_blank", rel: "noopener noreferrer", style: "color:var(--accent)" }, v)) : dd.append(v);
+      dl.append(el("dt", {}, INFO_LABEL[k] || k), dd);
+    }
+    if (safeUrl(info.avatar)) {
+      const av = el("img", { class: "avatar", src: info.avatar, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      av.onerror = () => av.remove();
+      c.append(av);
+    }
+    if (r.linked) c.append(el("div", { class: "evidence" }, "↳ " + (r.evidence || []).join(" · ")));
+    c.append(el("div", { class: "who" }, `@${r.username} · ${(r.tags || []).map((t) => "#" + t).join(" ")}${r.depth ? " · ชั้น " + r.depth : ""}`));
+    if (dl.children.length) c.append(dl);
+    if ((r.discovered || []).length) c.append(el("div", { class: "who" }, "ลิงก์ไปยัง: " + r.discovered.join(", ")));
+  } else if (r.status === "manual") {
+    c.append(el("div", { class: info.archived ? "hint" : "err" },
+      info.archived ? `archive.org เคยเก็บหน้าโปรไฟล์ @${r.username} ไว้ (ล่าสุด ${info.archived}) น่าจะมีบัญชีจริง`
+                    : `@${r.username} · ${r.site} บล็อกการตรวจอัตโนมัติ เปิดลิงก์เพื่อดูเอง`));
+    const ok = el("button", { type: "button", class: "btn small ok" }, "✓ เจอแล้ว");
+    ok.onclick = () => confirmManual(r);
+    const actions = el("div", { class: "actions" },
+      el("a", { class: "btn ghost small", href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer" }, "เปิดตรวจ ↗"));
+    if (safeUrl(info.archive_url))
+      actions.append(el("a", { class: "btn ghost small", href: info.archive_url, target: "_blank", rel: "noopener noreferrer" }, "ดูหน้าที่เก็บไว้ ↗"));
+    actions.append(ok);
+    c.append(actions);
+  } else {
+    c.append(el("div", { class: "err" }, `@${r.username}` + (r.error ? " · " + r.error : r.http_status ? ` · HTTP ${r.http_status}` : "")));
+  }
+  return c;
+}
+
+function render() {
+  const rank = (r) => (r.linked ? 0 : 1) + (r.status === "manual" && !(r.info || {}).archived ? 1 : 0);
+  const items = [...state.results.values()].filter(matches)
+    .sort((a, b) => rank(a) - rank(b) || (a.depth - b.depth) || a.site.localeCompare(b.site));
+  $("grid").replaceChildren(...items.map(card));
+  if (!items.length) $("grid").append(el("div", { class: "empty" }, state.es ? "กำลังค้นหา..." : "ไม่มีผลลัพธ์ในหมวดนี้"));
+}
+
+function renderIdentity() {
+  const list = state.identity;
+  if (!list.length) return;
+  $("identity").hidden = false;
+  const strong = list.filter((i) => i.confidence !== "low");
+  const shown = state.showAllId ? list : (strong.length ? strong : list.slice(0, 8));
+  const rows = shown.map((i) => el("div", { class: "idrow" },
+    el("span", { class: "conf " + i.confidence }, CONF[i.confidence]),
+    el("div", { class: "t" },
+      el("a", { href: safeUrl(i.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${i.site} · @${i.username}`),
+      el("div", { class: "ev" }, i.evidence.join(" · ")))));
+  const box = $("idList");
+  box.replaceChildren(...rows);
+  if (shown.length < list.length) {
+    const more = el("button", { type: "button", class: "more" }, `แสดงทั้งหมด ${list.length} บัญชี (รวมความมั่นใจต่ำ)`);
+    more.onclick = () => { state.showAllId = true; renderIdentity(); };
+    box.append(more);
+  }
+}
+
+// ---------- dossier: what the found accounts say about the person ----------
+function renderDossier() {
+  const found = [...state.results.values()].filter((r) => r.status === "found");
+  const confident = new Set(state.identity.filter((i) => i.confidence !== "low").map(key));
+  found.forEach((r) => { if (r.linked) confident.add(key(r)); });
+  let pool = found.filter((r) => confident.has(key(r)));
+  const usingConfident = pool.length >= 2;
+  if (!usingConfident) pool = found.filter((r) => r.depth === 0);
+  $("dossierSub").textContent = !found.length ? "ยังไม่มีข้อมูล"
+    : usingConfident ? `รวบรวมจาก ${pool.length} บัญชีที่ความมั่นใจกลาง-สูง`
+    : `รวบรวมจาก ${pool.length} บัญชีที่ username ตรงกัน (อาจปนคนอื่น)`;
+
+  const avatars = [], seenAv = new Set();
+  for (const r of pool) {
+    const a = (r.info || {}).avatar;
+    const placeholder = /missing\.png|default[_-]?(avatar|profile|user)|avatar[_-]?default|no[_-]?avatar|placeholder|anonymous|identicon/i;
+    if (safeUrl(a) && !placeholder.test(a) && !seenAv.has(a) && avatars.length < 10) { seenAv.add(a); avatars.push([a, r]); }
+  }
+  $("dAvatars").replaceChildren(...avatars.map(([a, r]) => {
+    const img = el("img", { src: a, alt: r.site, loading: "lazy", referrerpolicy: "no-referrer" });
+    const link = el("a", { href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer", title: `${r.site} · @${r.username}` }, img);
+    img.onerror = () => link.remove();
+    return link;
+  }));
+
+  const count = (vals) => {
+    const m = new Map();
+    for (const v of vals) if (v) m.set(v, (m.get(v) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const names = count(pool.map((r) => (r.info || {}).name).filter((n) => n && n.length <= 60));
+  const places = count(pool.map((r) => (r.info || {}).location).filter((n) => n && n.length <= 60));
+  const sites = count(pool.map((r) => (r.info || {}).website).filter(safeUrl));
+  const created = pool.map((r) => [(r.info || {}).created, r]).filter(([d]) => /^\d{4}-\d{2}-\d{2}/.test(d || "")).sort((a, b) => a[0].localeCompare(b[0]));
+  const tags = count(pool.flatMap((r) => r.tags || []));
+  const platforms = pool.filter((r) => r.linked).map((r) => `${r.site} @${r.username}`);
+
+  const facts = $("dFacts");
+  facts.replaceChildren();
+  const add = (label, node) => facts.append(el("dt", {}, label), el("dd", {}, node));
+  const chips = (arr) => { const d = el("div"); arr.slice(0, 8).forEach(([v, n]) => d.append(el("span", { class: "chip" }, n > 1 ? `${v} ×${n}` : v))); return d; };
+  if (names.length) add("ชื่อที่ใช้", chips(names));
+  if (platforms.length) add("โซเชียลที่เชื่อมโยง", chips(platforms.map((p) => [p, 1])));
+  if (places.length) add("ที่อยู่", chips(places));
+  if (sites.length) { const d = el("div"); sites.slice(0, 5).forEach(([u]) => d.append(el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, u)))); add("เว็บไซต์ส่วนตัว", d); }
+  if (created.length) add("บัญชีเก่าสุด", `${created[0][0].slice(0, 10)} (${created[0][1].site})`);
+  if (tags.length) add("ใช้งานด้าน", chips(tags.slice(0, 6).map(([t, n]) => ["#" + t, n])));
+  if (!facts.children.length) facts.append(el("dd", { style: "color:var(--muted)" }, "ยังไม่มีข้อมูลโปรไฟล์"));
+}
+
+function renderDorks() {
+  const box = $("dorks");
+  box.replaceChildren();
+  const u = state.usernames[0];
+  if (!u) return;
+  const q = (s) => "https://www.google.com/search?q=" + encodeURIComponent(s);
+  const list = [
+    ["ทั่วเว็บ", `"${u}"`],
+    ["Instagram", `"${u}" site:instagram.com`],
+    ["Facebook", `"${u}" site:facebook.com`],
+    ["TikTok", `"${u}" site:tiktok.com`],
+    ["X / Twitter", `"${u}" (site:x.com OR site:twitter.com)`],
+    ["YouTube", `"${u}" site:youtube.com`],
+    ["Reddit", `"${u}" site:reddit.com`],
+    ["Pantip", `"${u}" site:pantip.com`],
+    ["LinkedIn", `"${u}" site:linkedin.com`],
+    ["อีเมล", `"${u}@gmail.com" OR "${u}@hotmail.com"`],
+  ];
+  for (const [label, query] of list)
+    box.append(el("a", { class: "btn ghost small", href: q(query), target: "_blank", rel: "noopener noreferrer", title: query }, label));
+}
+
+async function exportAs(fmt) {
+  if (!state.results.size) return;
+  const res = await fetch("/api/report/" + fmt, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ results: [...state.results.values()].filter((r) => r.status !== "illegal"), identity: state.identity }) });
+  const blob = await res.blob();
+  const name = (res.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/)?.[1] || "sleuth." + fmt;
+  const a = el("a", { href: URL.createObjectURL(blob), download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+$("form").onsubmit = (e) => { e.preventDefault(); state.es ? stop("หยุดแล้ว") : start(); };
+$("seg").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.filter = b.dataset.f;
+  [...$("seg").children].forEach((x) => x.setAttribute("aria-pressed", x === b));
+  render();
+};
+$("filter").oninput = (e) => { state.text = e.target.value.trim().toLowerCase(); render(); };
+document.querySelectorAll("[data-export]").forEach((b) => (b.onclick = () => exportAs(b.dataset.export)));
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,1054 @@
+{
+  "About.me": {
+    "url": "https://about.me/{}",
+    "main": "https://about.me/",
+    "check": "status_code",
+    "tags": [
+      "social",
+      "links"
+    ],
+    "claimed": "tony",
+    "owner_links": true
+  },
+  "AniList": {
+    "url": "https://anilist.co/user/{}/",
+    "main": "https://anilist.co/",
+    "check": "status_code",
+    "probe": "https://graphql.anilist.co",
+    "method": "POST",
+    "json": {
+      "query": "query($name:String){User(name:$name){id}}",
+      "variables": {
+        "name": "{}"
+      }
+    },
+    "tags": [
+      "anime"
+    ],
+    "claimed": "AniList"
+  },
+  "ArtStation": {
+    "url": "https://www.artstation.com/{}",
+    "main": "https://www.artstation.com/",
+    "check": "status_code",
+    "probe": "https://www.artstation.com/users/{}/quick.json",
+    "tags": [
+      "art"
+    ],
+    "claimed": "jamajurabaev",
+    "disabled": true
+  },
+  "AtCoder": {
+    "url": "https://atcoder.jp/users/{}",
+    "main": "https://atcoder.jp/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "jp"
+    ],
+    "claimed": "tourist"
+  },
+  "Bandcamp": {
+    "url": "https://{}.bandcamp.com/",
+    "main": "https://bandcamp.com/",
+    "check": "response_url",
+    "error_url": "bandcamp.com/signup",
+    "regex": "^[a-zA-Z0-9-]{2,40}$",
+    "tags": [
+      "music"
+    ],
+    "claimed": "radiohead"
+  },
+  "Behance": {
+    "url": "https://www.behance.net/{}",
+    "main": "https://www.behance.net/",
+    "check": "status_code",
+    "tags": [
+      "art",
+      "design"
+    ],
+    "claimed": "matiascorea"
+  },
+  "Blogger": {
+    "url": "https://{}.blogspot.com/",
+    "main": "https://blogspot.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z][a-zA-Z0-9-]{2,29}$",
+    "tags": [
+      "blog"
+    ],
+    "claimed": "googleblog"
+  },
+  "Bluesky": {
+    "url": "https://bsky.app/profile/{}.bsky.social",
+    "main": "https://bsky.app/",
+    "check": "status_code",
+    "probe": "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={}.bsky.social",
+    "regex": "^[a-zA-Z0-9-]{3,18}$",
+    "tags": [
+      "social"
+    ],
+    "claimed": "jay"
+  },
+  "Buy Me a Coffee": {
+    "url": "https://buymeacoffee.com/{}",
+    "main": "https://buymeacoffee.com/",
+    "check": "status_code",
+    "tags": [
+      "creator"
+    ],
+    "claimed": "hey"
+  },
+  "Carrd": {
+    "url": "https://{}.carrd.co/",
+    "main": "https://carrd.co/",
+    "check": "status_code",
+    "regex": "^[a-z0-9-]{3,40}$",
+    "tags": [
+      "links"
+    ],
+    "claimed": "jay",
+    "owner_links": true
+  },
+  "Chess.com": {
+    "url": "https://www.chess.com/member/{}",
+    "main": "https://www.chess.com/",
+    "check": "status_code",
+    "probe": "https://api.chess.com/pub/player/{}",
+    "tags": [
+      "gaming",
+      "chess"
+    ],
+    "claimed": "hikaru"
+  },
+  "Codeberg": {
+    "url": "https://codeberg.org/{}",
+    "main": "https://codeberg.org/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "forgejo"
+  },
+  "Codeforces": {
+    "url": "https://codeforces.com/profile/{}",
+    "main": "https://codeforces.com/",
+    "check": "status_code",
+    "probe": "https://codeforces.com/api/user.info?handles={}",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "tourist"
+  },
+  "CodePen": {
+    "url": "https://codepen.io/{}",
+    "main": "https://codepen.io/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "chriscoyier",
+    "disabled": true
+  },
+  "Codewars": {
+    "url": "https://www.codewars.com/users/{}",
+    "main": "https://www.codewars.com/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "jhoffner"
+  },
+  "crates.io": {
+    "url": "https://crates.io/users/{}",
+    "main": "https://crates.io/",
+    "check": "status_code",
+    "probe": "https://crates.io/api/v1/users/{}",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "alexcrichton"
+  },
+  "Dailymotion": {
+    "url": "https://www.dailymotion.com/{}",
+    "main": "https://www.dailymotion.com/",
+    "check": "status_code",
+    "probe": "https://api.dailymotion.com/user/{}?fields=screenname,description,avatar_360_url,country,created_time,followers_total",
+    "tags": [
+      "video"
+    ],
+    "claimed": "dailymotion"
+  },
+  "Dev.to": {
+    "url": "https://dev.to/{}",
+    "main": "https://dev.to/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "blog"
+    ],
+    "claimed": "ben"
+  },
+  "DeviantArt": {
+    "url": "https://www.deviantart.com/{}",
+    "main": "https://www.deviantart.com/",
+    "check": "status_code",
+    "tags": [
+      "art"
+    ],
+    "claimed": "spyed"
+  },
+  "Disqus": {
+    "url": "https://disqus.com/by/{}/",
+    "main": "https://disqus.com/",
+    "check": "status_code",
+    "probe": "https://disqus.com/api/3.0/users/details?user=username:{}&api_key=E8Uh5l5fHZ6gD8U3KycjAIAk46f68Zw7C6eW8WSjZvCLXebZ7p0r1yrYDrLilk2F",
+    "tags": [
+      "social",
+      "forum"
+    ],
+    "claimed": "disqus"
+  },
+  "Docker Hub": {
+    "url": "https://hub.docker.com/u/{}",
+    "main": "https://hub.docker.com/",
+    "check": "status_code",
+    "probe": "https://hub.docker.com/v2/users/{}/",
+    "regex": "^[a-z0-9]{4,30}$",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "jwilder"
+  },
+  "Dribbble": {
+    "url": "https://dribbble.com/{}",
+    "main": "https://dribbble.com/",
+    "check": "status_code",
+    "tags": [
+      "art",
+      "design"
+    ],
+    "claimed": "dribbble"
+  },
+  "Duolingo": {
+    "url": "https://www.duolingo.com/profile/{}",
+    "main": "https://www.duolingo.com/",
+    "check": "message",
+    "probe": "https://www.duolingo.com/2017-06-30/users?username={}",
+    "error_msg": "{\"users\":[]}",
+    "tags": [
+      "education"
+    ],
+    "claimed": "luis"
+  },
+  "Exercism": {
+    "url": "https://exercism.org/profiles/{}",
+    "main": "https://exercism.org/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "education"
+    ],
+    "claimed": "iHiD"
+  },
+  "Facebook": {
+    "url": "https://www.facebook.com/{}",
+    "main": "https://www.facebook.com/",
+    "check": "manual",
+    "regex": "^[A-Za-z0-9.]{5,50}$",
+    "tags": [
+      "social"
+    ],
+    "claimed": "facebook"
+  },
+  "Fandom": {
+    "url": "https://community.fandom.com/wiki/User:{}",
+    "main": "https://community.fandom.com/",
+    "check": "message",
+    "probe": "https://community.fandom.com/api.php?action=query&format=json&list=users&ususers={}",
+    "error_msg": [
+      "\"missing\"",
+      "\"invalid\""
+    ],
+    "headers": {
+      "User-Agent": "Sleuth/1.0 (OSINT username checker; +https://github.com/sherlock-project/sherlock)"
+    },
+    "tags": [
+      "wiki",
+      "gaming"
+    ],
+    "claimed": "Sannse"
+  },
+  "Flickr": {
+    "url": "https://www.flickr.com/people/{}/",
+    "main": "https://www.flickr.com/",
+    "check": "status_code",
+    "tags": [
+      "photo"
+    ],
+    "claimed": "flickr",
+    "disabled": true
+  },
+  "Flipboard": {
+    "url": "https://flipboard.com/@{}",
+    "main": "https://flipboard.com/",
+    "check": "status_code",
+    "tags": [
+      "social"
+    ],
+    "claimed": "flipboard"
+  },
+  "Fosstodon": {
+    "url": "https://fosstodon.org/@{}",
+    "main": "https://fosstodon.org/",
+    "check": "status_code",
+    "probe": "https://fosstodon.org/api/v1/accounts/lookup?acct={}",
+    "tags": [
+      "social",
+      "coding"
+    ],
+    "claimed": "kev"
+  },
+  "Genius": {
+    "url": "https://genius.com/{}",
+    "main": "https://genius.com/",
+    "check": "status_code",
+    "tags": [
+      "music"
+    ],
+    "claimed": "Genius"
+  },
+  "Gitee": {
+    "url": "https://gitee.com/{}",
+    "main": "https://gitee.com/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "cn"
+    ],
+    "claimed": "gitee",
+    "disabled": true
+  },
+  "GitHub": {
+    "url": "https://github.com/{}",
+    "main": "https://github.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "torvalds"
+  },
+  "GitHub Gist": {
+    "url": "https://gist.github.com/{}",
+    "main": "https://gist.github.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "torvalds"
+  },
+  "GitLab": {
+    "url": "https://gitlab.com/{}",
+    "main": "https://gitlab.com/",
+    "check": "message",
+    "probe": "https://gitlab.com/api/v4/users?username={}",
+    "error_msg": "[]",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "dzaporozhets"
+  },
+  "Gravatar": {
+    "url": "https://gravatar.com/{}",
+    "main": "https://gravatar.com/",
+    "check": "status_code",
+    "probe": "https://en.gravatar.com/{}.json",
+    "tags": [
+      "social",
+      "links"
+    ],
+    "claimed": "beau"
+  },
+  "Gumroad": {
+    "url": "https://{}.gumroad.com/",
+    "main": "https://gumroad.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9-]{3,40}$",
+    "tags": [
+      "creator",
+      "shopping"
+    ],
+    "claimed": "sahil"
+  },
+  "Habr": {
+    "url": "https://habr.com/en/users/{}/",
+    "main": "https://habr.com/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "ru"
+    ],
+    "claimed": "boomburum"
+  },
+  "Hacker News": {
+    "url": "https://news.ycombinator.com/user?id={}",
+    "main": "https://news.ycombinator.com/",
+    "check": "message",
+    "error_msg": "No such user.",
+    "tags": [
+      "coding",
+      "forum"
+    ],
+    "claimed": "pg"
+  },
+  "HackerRank": {
+    "url": "https://www.hackerrank.com/profile/{}",
+    "main": "https://www.hackerrank.com/",
+    "check": "status_code",
+    "probe": "https://www.hackerrank.com/rest/contests/master/hackers/{}/profile",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "anshu"
+  },
+  "Hugging Face": {
+    "url": "https://huggingface.co/{}",
+    "main": "https://huggingface.co/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "ai"
+    ],
+    "claimed": "julien-c"
+  },
+  "Imgur": {
+    "url": "https://imgur.com/user/{}",
+    "main": "https://imgur.com/",
+    "check": "status_code",
+    "probe": "https://api.imgur.com/account/v1/accounts/{}?client_id=546c25a59c58ad7",
+    "tags": [
+      "photo"
+    ],
+    "claimed": "imgur"
+  },
+  "Instagram": {
+    "url": "https://www.instagram.com/{}/",
+    "main": "https://www.instagram.com/",
+    "check": "manual",
+    "regex": "^[A-Za-z0-9_.]{1,30}$",
+    "tags": [
+      "social",
+      "photo"
+    ],
+    "claimed": "instagram"
+  },
+  "Instructables": {
+    "url": "https://www.instructables.com/member/{}/",
+    "main": "https://www.instructables.com/",
+    "check": "status_code",
+    "tags": [
+      "diy"
+    ],
+    "claimed": "randofo"
+  },
+  "Issuu": {
+    "url": "https://issuu.com/{}",
+    "main": "https://issuu.com/",
+    "check": "status_code",
+    "tags": [
+      "writing"
+    ],
+    "claimed": "issuu"
+  },
+  "itch.io": {
+    "url": "https://{}.itch.io/",
+    "main": "https://itch.io/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9-]{2,40}$",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "leafo"
+  },
+  "Kaggle": {
+    "url": "https://www.kaggle.com/{}",
+    "main": "https://www.kaggle.com/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "ai"
+    ],
+    "claimed": "dansbecker"
+  },
+  "Keybase": {
+    "url": "https://keybase.io/{}",
+    "main": "https://keybase.io/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "crypto"
+    ],
+    "claimed": "chris"
+  },
+  "Kick": {
+    "url": "https://kick.com/{}",
+    "main": "https://kick.com/",
+    "check": "status_code",
+    "probe": "https://kick.com/api/v2/channels/{}",
+    "tags": [
+      "video",
+      "gaming"
+    ],
+    "claimed": "xqc"
+  },
+  "Ko-fi": {
+    "url": "https://ko-fi.com/{}",
+    "main": "https://ko-fi.com/",
+    "check": "status_code",
+    "tags": [
+      "creator"
+    ],
+    "claimed": "kofi",
+    "disabled": true
+  },
+  "Kongregate": {
+    "url": "https://www.kongregate.com/accounts/{}",
+    "main": "https://www.kongregate.com/",
+    "check": "status_code",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "Greg"
+  },
+  "Last.fm": {
+    "url": "https://www.last.fm/user/{}",
+    "main": "https://www.last.fm/",
+    "check": "status_code",
+    "tags": [
+      "music"
+    ],
+    "claimed": "rj",
+    "disabled": true
+  },
+  "Launchpad": {
+    "url": "https://launchpad.net/~{}",
+    "main": "https://launchpad.net/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "sabdfl"
+  },
+  "LeetCode": {
+    "url": "https://leetcode.com/u/{}/",
+    "main": "https://leetcode.com/",
+    "check": "message",
+    "probe": "https://leetcode.com/graphql",
+    "error_msg": "\"matchedUser\":null",
+    "method": "POST",
+    "json": {
+      "query": "query($u:String!){matchedUser(username:$u){username}}",
+      "variables": {
+        "u": "{}"
+      }
+    },
+    "headers": {
+      "Referer": "https://leetcode.com/"
+    },
+    "tags": [
+      "coding"
+    ],
+    "claimed": "lee215"
+  },
+  "Lemmy": {
+    "url": "https://lemmy.world/u/{}",
+    "main": "https://lemmy.world/",
+    "check": "status_code",
+    "probe": "https://lemmy.world/api/v3/user?username={}",
+    "tags": [
+      "social",
+      "forum"
+    ],
+    "claimed": "ruud"
+  },
+  "Letterboxd": {
+    "url": "https://letterboxd.com/{}/",
+    "main": "https://letterboxd.com/",
+    "check": "status_code",
+    "tags": [
+      "movies"
+    ],
+    "claimed": "dave",
+    "disabled": true
+  },
+  "Lichess": {
+    "url": "https://lichess.org/@/{}",
+    "main": "https://lichess.org/",
+    "check": "status_code",
+    "probe": "https://lichess.org/api/user/{}",
+    "tags": [
+      "gaming",
+      "chess"
+    ],
+    "claimed": "thibault"
+  },
+  "Linktree": {
+    "url": "https://linktr.ee/{}",
+    "main": "https://linktr.ee/",
+    "check": "status_code",
+    "tags": [
+      "social",
+      "links"
+    ],
+    "claimed": "selenagomez",
+    "owner_links": true
+  },
+  "Lobsters": {
+    "url": "https://lobste.rs/~{}",
+    "main": "https://lobste.rs/",
+    "check": "status_code",
+    "tags": [
+      "coding",
+      "forum"
+    ],
+    "claimed": "jcs"
+  },
+  "Mastodon": {
+    "url": "https://mastodon.social/@{}",
+    "main": "https://mastodon.social/",
+    "check": "status_code",
+    "probe": "https://mastodon.social/api/v1/accounts/lookup?acct={}",
+    "tags": [
+      "social"
+    ],
+    "claimed": "Gargron"
+  },
+  "Medium": {
+    "url": "https://medium.com/@{}",
+    "main": "https://medium.com/",
+    "check": "status_code",
+    "probe": "https://medium.com/feed/@{}",
+    "tags": [
+      "blog"
+    ],
+    "claimed": "ev"
+  },
+  "Minecraft": {
+    "url": "https://namemc.com/profile/{}",
+    "main": "https://namemc.com/",
+    "check": "status_code",
+    "probe": "https://api.mojang.com/users/profiles/minecraft/{}",
+    "regex": "^[A-Za-z0-9_]{3,16}$",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "Notch"
+  },
+  "Mixcloud": {
+    "url": "https://www.mixcloud.com/{}/",
+    "main": "https://www.mixcloud.com/",
+    "check": "status_code",
+    "probe": "https://api.mixcloud.com/{}/",
+    "tags": [
+      "music"
+    ],
+    "claimed": "mixcloud"
+  },
+  "Monkeytype": {
+    "url": "https://monkeytype.com/profile/{}",
+    "main": "https://monkeytype.com/",
+    "check": "status_code",
+    "probe": "https://api.monkeytype.com/users/{}/profile",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "Miodec"
+  },
+  "MyAnimeList": {
+    "url": "https://myanimelist.net/profile/{}",
+    "main": "https://myanimelist.net/",
+    "check": "status_code",
+    "tags": [
+      "anime"
+    ],
+    "claimed": "Xinil"
+  },
+  "npm": {
+    "url": "https://www.npmjs.com/~{}",
+    "main": "https://www.npmjs.com/",
+    "check": "message",
+    "probe": "https://registry.npmjs.org/-/v1/search?text=maintainer:{}&size=1",
+    "error_msg": "\"total\":0",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "sindresorhus",
+    "extract": false
+  },
+  "OpenStreetMap": {
+    "url": "https://www.openstreetmap.org/user/{}",
+    "main": "https://www.openstreetmap.org/",
+    "check": "status_code",
+    "tags": [
+      "wiki",
+      "maps"
+    ],
+    "claimed": "steve"
+  },
+  "osu!": {
+    "url": "https://osu.ppy.sh/users/{}",
+    "main": "https://osu.ppy.sh/",
+    "check": "status_code",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "peppy"
+  },
+  "Packagist": {
+    "url": "https://packagist.org/users/{}/",
+    "main": "https://packagist.org/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "seldaek"
+  },
+  "Pastebin": {
+    "url": "https://pastebin.com/u/{}",
+    "main": "https://pastebin.com/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "admin"
+  },
+  "Patreon": {
+    "url": "https://www.patreon.com/{}",
+    "main": "https://www.patreon.com/",
+    "check": "status_code",
+    "tags": [
+      "creator"
+    ],
+    "claimed": "kurzgesagt"
+  },
+  "Pinterest": {
+    "url": "https://www.pinterest.com/{}/",
+    "main": "https://www.pinterest.com/",
+    "check": "status_code",
+    "probe": "https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/{}/",
+    "tags": [
+      "social",
+      "photo"
+    ],
+    "claimed": "pinterest"
+  },
+  "Pixelfed": {
+    "url": "https://pixelfed.social/{}",
+    "main": "https://pixelfed.social/",
+    "check": "status_code",
+    "probe": "https://pixelfed.social/api/v1/accounts/lookup?acct={}",
+    "tags": [
+      "social",
+      "photo"
+    ],
+    "claimed": "dansup"
+  },
+  "PyPI": {
+    "url": "https://pypi.org/user/{}/",
+    "main": "https://pypi.org/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "dstufft",
+    "disabled": true
+  },
+  "Reddit": {
+    "url": "https://www.reddit.com/user/{}",
+    "main": "https://www.reddit.com/",
+    "check": "status_code",
+    "probe": "https://www.reddit.com/user/{}/about.json",
+    "tags": [
+      "social",
+      "forum"
+    ],
+    "claimed": "spez",
+    "disabled": true
+  },
+  "Roblox": {
+    "url": "https://www.roblox.com/user.aspx?username={}",
+    "main": "https://www.roblox.com/",
+    "check": "message",
+    "probe": "https://users.roblox.com/v1/usernames/users",
+    "error_msg": "\"data\":[]",
+    "method": "POST",
+    "json": {
+      "usernames": [
+        "{}"
+      ],
+      "excludeBannedUsers": false
+    },
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "builderman"
+  },
+  "RubyGems": {
+    "url": "https://rubygems.org/profiles/{}",
+    "main": "https://rubygems.org/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "tenderlove"
+  },
+  "Scratch": {
+    "url": "https://scratch.mit.edu/users/{}",
+    "main": "https://scratch.mit.edu/",
+    "check": "status_code",
+    "probe": "https://api.scratch.mit.edu/users/{}",
+    "tags": [
+      "coding",
+      "education"
+    ],
+    "claimed": "griffpatch"
+  },
+  "Slides": {
+    "url": "https://slides.com/{}",
+    "main": "https://slides.com/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "hakimel"
+  },
+  "Snapchat": {
+    "url": "https://www.snapchat.com/add/{}",
+    "main": "https://www.snapchat.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z][a-zA-Z0-9._-]{2,14}$",
+    "tags": [
+      "social"
+    ],
+    "claimed": "teamsnapchat"
+  },
+  "SoundCloud": {
+    "url": "https://soundcloud.com/{}",
+    "main": "https://soundcloud.com/",
+    "check": "status_code",
+    "tags": [
+      "music"
+    ],
+    "claimed": "soundcloud"
+  },
+  "SourceHut": {
+    "url": "https://sr.ht/~{}/",
+    "main": "https://sr.ht/",
+    "check": "status_code",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "sircmpwn"
+  },
+  "Speedrun.com": {
+    "url": "https://www.speedrun.com/users/{}",
+    "main": "https://www.speedrun.com/",
+    "check": "status_code",
+    "probe": "https://www.speedrun.com/api/v1/users/{}",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "Pac"
+  },
+  "Steam": {
+    "url": "https://steamcommunity.com/id/{}",
+    "main": "https://steamcommunity.com/",
+    "check": "message",
+    "error_msg": "The specified profile could not be found.",
+    "presence_msg": [
+      "g_rgProfileData"
+    ],
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "gabelogannewell"
+  },
+  "Substack": {
+    "url": "https://{}.substack.com/",
+    "main": "https://substack.com/",
+    "check": "status_code",
+    "regex": "^[a-z0-9-]{3,40}$",
+    "tags": [
+      "blog",
+      "writing"
+    ],
+    "claimed": "platformer"
+  },
+  "Telegram": {
+    "url": "https://t.me/{}",
+    "main": "https://t.me/",
+    "check": "message",
+    "error_msg": "you can contact <a class=\"tgme_username_link\"",
+    "regex": "^[a-zA-Z][a-zA-Z0-9_]{4,31}$",
+    "tags": [
+      "social",
+      "messaging"
+    ],
+    "claimed": "durov"
+  },
+  "Threads": {
+    "url": "https://www.threads.net/@{}",
+    "main": "https://www.threads.net/",
+    "check": "manual",
+    "regex": "^[A-Za-z0-9_.]{1,30}$",
+    "tags": [
+      "social"
+    ],
+    "claimed": "zuck"
+  },
+  "TikTok": {
+    "url": "https://www.tiktok.com/@{}",
+    "main": "https://www.tiktok.com/",
+    "check": "manual",
+    "regex": "^[A-Za-z0-9_.]{2,24}$",
+    "tags": [
+      "social",
+      "video"
+    ],
+    "claimed": "tiktok"
+  },
+  "Trello": {
+    "url": "https://trello.com/{}",
+    "main": "https://trello.com/",
+    "check": "status_code",
+    "probe": "https://trello.com/1/Members/{}",
+    "tags": [
+      "productivity"
+    ],
+    "claimed": "trello"
+  },
+  "Tumblr": {
+    "url": "https://{}.tumblr.com/",
+    "main": "https://tumblr.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9-]{1,32}$",
+    "tags": [
+      "social",
+      "blog"
+    ],
+    "claimed": "staff"
+  },
+  "Twitch": {
+    "url": "https://www.twitch.tv/{}",
+    "main": "https://www.twitch.tv/",
+    "check": "message",
+    "probe": "https://gql.twitch.tv/gql",
+    "error_msg": "\"user\":null",
+    "regex": "^[a-zA-Z0-9_]{4,25}$",
+    "method": "POST",
+    "json": {
+      "query": "query($l:String!){user(login:$l){login displayName description createdAt profileImageURL(width:300) channel{socialMedias{name url}}}}",
+      "variables": {
+        "l": "{}"
+      }
+    },
+    "headers": {
+      "Client-ID": "kimne78kx3ncx6brgo4mv6wki5h1ko"
+    },
+    "tags": [
+      "video",
+      "gaming"
+    ],
+    "claimed": "twitch"
+  },
+  "Unsplash": {
+    "url": "https://unsplash.com/@{}",
+    "main": "https://unsplash.com/",
+    "check": "status_code",
+    "tags": [
+      "photo"
+    ],
+    "claimed": "jakobowens1",
+    "disabled": true
+  },
+  "VK": {
+    "url": "https://vk.com/{}",
+    "main": "https://vk.com/",
+    "check": "status_code",
+    "tags": [
+      "social",
+      "ru"
+    ],
+    "claimed": "durov",
+    "disabled": true
+  },
+  "WakaTime": {
+    "url": "https://wakatime.com/@{}",
+    "main": "https://wakatime.com/",
+    "check": "status_code",
+    "probe": "https://wakatime.com/api/v1/users/{}",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "alan"
+  },
+  "Wattpad": {
+    "url": "https://www.wattpad.com/user/{}",
+    "main": "https://www.wattpad.com/",
+    "check": "status_code",
+    "probe": "https://www.wattpad.com/api/v3/users/{}/",
+    "tags": [
+      "writing"
+    ],
+    "claimed": "Wattpad"
+  },
+  "Wikipedia": {
+    "url": "https://en.wikipedia.org/wiki/User:{}",
+    "main": "https://en.wikipedia.org/",
+    "check": "message",
+    "probe": "https://en.wikipedia.org/w/api.php?action=query&format=json&list=users&ususers={}",
+    "error_msg": [
+      "\"missing\"",
+      "\"invalid\""
+    ],
+    "headers": {
+      "User-Agent": "Sleuth/1.0 (OSINT username checker; +https://github.com/sherlock-project/sherlock)"
+    },
+    "tags": [
+      "wiki"
+    ],
+    "claimed": "Jimbo_Wales"
+  },
+  "WordPress": {
+    "url": "https://{}.wordpress.com/",
+    "main": "https://wordpress.com/",
+    "check": "response_url",
+    "error_url": "wordpress.com/typo",
+    "regex": "^[a-zA-Z0-9]{4,50}$",
+    "tags": [
+      "blog"
+    ],
+    "claimed": "discover"
+  },
+  "X (Twitter)": {
+    "url": "https://x.com/{}",
+    "main": "https://x.com/",
+    "check": "manual",
+    "regex": "^[A-Za-z0-9_]{1,15}$",
+    "tags": [
+      "social"
+    ],
+    "claimed": "jack"
+  },
+  "YouTube": {
+    "url": "https://www.youtube.com/@{}",
+    "main": "https://www.youtube.com/",
+    "check": "status_code",
+    "tags": [
+      "video"
+    ],
+    "claimed": "youtube"
+  }
+}
