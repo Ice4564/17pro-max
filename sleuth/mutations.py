@@ -75,3 +75,28 @@ def mutations(username: str, limit: int = 12, padding: bool = True, leet: bool =
 
 def mutation_names(username: str, limit: int = 12) -> list[str]:
     return [c.username for c in mutations(username, limit)]
+
+
+MAX_NUMBERS = 100  # every number is one more username checked on every site
+
+
+def parse_range(value: str | None) -> tuple[int, int] | None:
+    """'1-10' -> (1, 10), '5' -> (1, 5); None/'' / garbage -> None. Capped at MAX_NUMBERS numbers."""
+    m = re.fullmatch(r"\s*(\d{1,6})\s*(?:[-–:]\s*(\d{1,6}))?\s*", value or "")
+    if not m:
+        return None
+    start, end = (int(m.group(1)), int(m.group(2))) if m.group(2) else (1, int(m.group(1)))
+    if start > end:
+        start, end = end, start
+    return start, min(end, start + MAX_NUMBERS - 1)
+
+
+def numbered(username: str, start: int = 1, end: int = 10) -> list[Candidate]:
+    """ice -> ice1, ice2, ... ice10 (the typed name with a number appended)."""
+    base = username.strip().lstrip("@")
+    out = []
+    for n in range(start, end + 1):
+        name = f"{base}{n}"
+        if ALLOWED.match(name):
+            out.append(Candidate(name, f"เติมเลข {n} ท้ายชื่อ"))
+    return out

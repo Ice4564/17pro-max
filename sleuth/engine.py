@@ -24,7 +24,7 @@ from . import __version__, avatars, websearch
 from .evidence import account_id, build_findings, build_graph, build_timeline, domain_id, summary
 from .identity import clusters as identity_clusters
 from .linker import find_social, identity_summary, match_social
-from .mutations import mutations
+from .mutations import mutations, numbered
 from .similarity import JUNK_HOSTS, connections as find_connections, emails_in_text
 from .sites import Site
 from .verify import verify
@@ -107,6 +107,7 @@ class SearchConfig:
     max_usernames: int = 10  # cap on extra usernames found by recursion
     variants: bool = False  # also try mutations: ice4564 -> ice_4564, ice.4564, ice4564x, ice4564th ...
     max_candidates: int = 12  # mutations per typed username
+    numbers: tuple[int, int] | None = None  # also try the name + a number: (1, 10) -> ice1 ... ice10
     domains: bool = True  # follow personal websites found in profiles (needs depth >= 1)
     max_domains: int = 5
     avatars: bool = True  # compare profile pictures across found accounts (needs Pillow)
@@ -703,6 +704,12 @@ class Searcher:
                     if self._add_query(c.username, "candidate", 0, source=f"candidate ของ {u}: {c.rule}",
                                        candidate_of=u, rule=c.rule):
                         level.append(c.username)
+        if cfg.numbers:
+            for u in usernames:
+                for c in numbered(u, *cfg.numbers):
+                    if self._add_query(c.username, "candidate", 0, source=f"candidate ของ {u}: {c.rule}",
+                                       candidate_of=u, rule=c.rule):
+                        level.append(c.username)
         started = time.perf_counter()
         run_started = now_iso()
         sem = asyncio.Semaphore(cfg.concurrency)
@@ -812,7 +819,7 @@ class Searcher:
             try:
                 rec = self.history.record_run(
                     usernames, dicts, hashes, self.stats(), started=run_started,
-                    options={k: getattr(cfg, k) for k in ("depth", "variants", "web_search", "domains", "cache")})
+                    options={k: getattr(cfg, k) for k in ("depth", "variants", "numbers", "web_search", "domains", "cache")})
                 self.run_id, self.changes, seen = rec["run_id"], rec["changes"], rec["seen"]
                 names = sorted({r["username"] for r in dicts if r["status"] == "found"} | set(usernames))
                 history_changes = self.history.changes_for(names)

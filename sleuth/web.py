@@ -13,7 +13,7 @@ from aiohttp import web
 from . import __version__, report
 from .engine import SearchConfig, Searcher
 from .history import History
-from .mutations import mutations
+from .mutations import mutations, numbered, parse_range
 from .sites import all_tags, filter_sites, load_sites
 
 STATIC = Path(__file__).parent / "static"
@@ -75,6 +75,7 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
             web_search=q.get("websearch", "1") == "1",
             cache=q.get("cache", "1") == "1",
             host_interval=0.3,
+            numbers=parse_range(q.get("numbers")),
         )
 
         resp = web.StreamResponse(headers={
@@ -157,7 +158,11 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
     async def mutation_preview(request: web.Request) -> web.Response:
         u = request.query.get("u", "").strip().lstrip("@")[:40]
         n = int(_clamp(request.query.get("n"), 12, 1, 30))
-        return web.json_response([{"username": c.username, "rule": c.rule} for c in mutations(u, n)] if u else [])
+        cands = mutations(u, n) if u and request.query.get("variants", "1") == "1" else []
+        rng = parse_range(request.query.get("numbers"))
+        if u and rng:
+            cands += numbered(u, *rng)
+        return web.json_response([{"username": c.username, "rule": c.rule} for c in cands])
 
     app.router.add_get("/", index)
     app.router.add_get("/api/sites", sites)

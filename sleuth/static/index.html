@@ -16,6 +16,7 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 .opts { display:flex; gap:8px 18px; flex-wrap:wrap; align-items:center; margin-top:12px; font-size:14px; color:var(--muted); }
 .opts label { display:flex; align-items:center; gap:6px; }
 .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.opts input.range { width:64px; height:28px; border:1px solid var(--line); background:var(--panel2); border-radius:7px; padding:0 6px; }
 .mutprev { margin-top:8px; font-size:12px; color:var(--muted); }
 .mutprev .chip { font-size:12px; font-family:ui-monospace,Consolas,monospace; }
 
@@ -218,6 +219,8 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
         <select id="depth"><option value="0">ปิด</option><option value="1" selected>1 ชั้น</option><option value="2">2 ชั้น</option></select>
       </label>
       <label title="ice4564 → ice_4564, ice.4564, ice4564_, ice4564x, ice4564th … ผลจะแยกจาก username ที่พิมพ์"><input type="checkbox" id="variants"> ลองชื่อใกล้เคียง</label>
+      <label title="ice → ice1, ice2 … ice10 (สูงสุด 100 เลข)"><input type="checkbox" id="numbersOn"> เติมเลข
+        <input id="numbers" value="1-10" size="6" class="range" spellcheck="false" aria-label="ช่วงตัวเลข"></label>
       <label title="ค้น &quot;username&quot; site:instagram.com ฯลฯ ใน DuckDuckGo (สำรองด้วย Bing)"><input type="checkbox" id="websearch" checked> ค้นใน search engine</label>
       <label><input type="checkbox" id="followDomains" checked> ตามเว็บไซต์ส่วนตัว</label>
       <label><input type="checkbox" id="archive" checked> ค้น IG/FB/TikTok ใน archive.org</label>
@@ -436,9 +439,11 @@ let mutTimer = null;
 function previewMutations() {
   clearTimeout(mutTimer);
   const u = $("u").value.trim().replace(/^@/, "").split(/[\s,]+/)[0];
-  if (!$("variants").checked || !u) { $("mutPrev").hidden = true; return; }
+  const nums = $("numbersOn").checked ? $("numbers").value.trim() : "";
+  if (!($("variants").checked || nums) || !u) { $("mutPrev").hidden = true; return; }
   mutTimer = setTimeout(async () => {
-    const list = await fetch("/api/mutations?u=" + encodeURIComponent(u)).then((r) => r.json()).catch(() => []);
+    const q = new URLSearchParams({ u, variants: $("variants").checked ? "1" : "0", numbers: nums });
+    const list = await fetch("/api/mutations?" + q).then((r) => r.json()).catch(() => []);
     $("mutPrev").hidden = !list.length;
     $("mutPrev").replaceChildren(`จะลองเพิ่ม ${list.length} ชื่อ: `, ...list.map((m) => el("span", { class: "chip", title: m.rule }, m.username)));
   }, 250);
@@ -486,7 +491,7 @@ function start() {
   renderDorks(); renderDossier(); updateStats();
   const p = new URLSearchParams({ u, depth: $("depth").value, timeout: $("timeout").value, tags: [...state.tags].join(","),
     variants: $("variants").checked ? "1" : "0", archive: $("archive").checked ? "1" : "0", avatars: $("avatars").checked ? "1" : "0",
-    domains: $("followDomains").checked ? "1" : "0", websearch: $("websearch").checked ? "1" : "0", cache: $("cache").checked ? "1" : "0" });
+    domains: $("followDomains").checked ? "1" : "0", numbers: $("numbersOn").checked ? $("numbers").value.trim() : "", websearch: $("websearch").checked ? "1" : "0", cache: $("cache").checked ? "1" : "0" });
   const es = new EventSource("/api/search?" + p);
   state.es = es; setRunning(true);
   es.onmessage = (m) => handle(JSON.parse(m.data));
@@ -1060,6 +1065,8 @@ $("zOut").onclick = () => { const r = G.svg?.getBoundingClientRect(); if (r) zoo
 $("zFit").onclick = fitGraph;
 $("u").addEventListener("input", previewMutations);
 $("variants").addEventListener("change", previewMutations);
+$("numbersOn").addEventListener("change", previewMutations);
+$("numbers").addEventListener("input", () => { $("numbersOn").checked = true; previewMutations(); });
 document.querySelectorAll("[data-export]").forEach((b) => (b.onclick = () => exportAs(b.dataset.export)));
 init();
 </script>

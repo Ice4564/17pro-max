@@ -249,6 +249,8 @@ def do_person(args: argparse.Namespace, sites, all_sites) -> None:
         return
     args.usernames = list(dict.fromkeys(names))
     args.variants = ask_yes("ลองชื่อใกล้เคียงด้วยไหม (sky_123, sky123_, sky123x, sky123th…)", False)
+    nums = ask("เติมเลขท้ายชื่อด้วยไหม เช่น 1-10 (Enter = ไม่เติม)", "")
+    args.numbers = nums or None
     args.web_search = ask_yes("ค้นใน DuckDuckGo/Bing ด้วยไหม", True)
     depth = ask("ค้นต่อจากบัญชีที่เจอกี่ชั้น 0-2", "1")
     args.depth = int(depth) if depth in ("0", "1", "2") else 1

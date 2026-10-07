@@ -39,6 +39,39 @@ def test_mutations_cover_common_padding():
     assert mutation_names("ice4564")[:3] == ["ice_4564", "ice.4564", "ice-4564"]  # separators first
 
 
+def test_numbered_names():
+    from sleuth.mutations import numbered, parse_range
+    assert [c.username for c in numbered("ice", 1, 10)] == [f"ice{i}" for i in range(1, 11)]
+    assert parse_range("1-10") == (1, 10) and parse_range("5") == (1, 5) and parse_range("10-3") == (3, 10)
+    assert parse_range("1-100000") == (1, 100) and parse_range("abc") is None and parse_range("") is None
+
+
+def test_numbers_are_searched_as_candidates():
+    async def go():
+        async def prof(req):
+            u = req.match_info["u"]
+            if u in ("ice", "ice3"):
+                return web.Response(text=f"<title>{u}</title><p>@{u}</p>", content_type="text/html")
+            return web.Response(status=404, text="no")
+
+        app = web.Application()
+        app.router.add_get("/p/{u}", prof)
+        runner, base = await _serve(app)
+        try:
+            s = Searcher([Site.from_dict("P", {"url": base + "/p/{}"})],
+                         SearchConfig(timeout=5, retries=0, archive=False, avatars=False, depth=0, numbers=(1, 5)))
+            [e async for e in s.run(["ice"])]
+            return s
+        finally:
+            await runner.cleanup()
+
+    s = asyncio.run(go())
+    checked = {r.username for r in s.results}
+    assert {"ice1", "ice5"} <= checked and "ice6" not in checked
+    hit = next(r for r in s.results if r.username == "ice3")
+    assert hit.status.value == "found" and hit.query == "candidate" and hit.candidate_of == "ice"
+
+
 # ---- history: change tracker + cache ----------------------------------------------
 def test_parse_count():
     assert parse_count("1,240") == 1240

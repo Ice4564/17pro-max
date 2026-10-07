@@ -105,6 +105,7 @@ python -m sleuth torvalds -f all
 | `-d 0` | ปิดการค้นต่อแบบ recursive (ค่าเริ่มต้น `-d 1`) |
 | `-v` / `--mutations` | ลองชื่อใกล้เคียง เช่น `ice4564` → `ice_4564`, `ice.4564`, `ice4564_`, `ice4564x`, `ice4564th`, `realice4564` … ค้นพร้อมกันในรอบเดียว (แยกผลจากชื่อที่พิมพ์) |
 | `--max-candidates 12` | จำนวนชื่อใกล้เคียงต่อ username |
+| `-n 1-10` / `--numbers 1-10` | ลองเติมเลขท้ายชื่อด้วย เช่น `ice` → `ice1`, `ice2` … `ice10` (สูงสุด 100 เลข, ในหน้าเว็บติ๊ก "เติมเลข") |
 | `--show-mutations` | แสดงชื่อใกล้เคียงที่จะลอง แล้วจบ |
 | `-w` / `--web-search` | ค้น `"username"`, `"username" site:instagram.com` ฯลฯ ใน DuckDuckGo (สำรองด้วย Bing) |
 | `--max-search 6` | จำนวนคำค้นต่อ username |

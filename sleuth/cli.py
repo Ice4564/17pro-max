@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import __version__, report
 from .engine import SearchConfig, Searcher, Status
+from .mutations import parse_range
 from .sites import all_tags, filter_sites, load_sites, save_sites
 
 BANNER = r"""
@@ -58,6 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-v", "--variants", "--candidates", "--mutations", action="store_true", dest="variants",
                    help="also try username mutations (ice4564 -> ice_4564, ice.4564, ice4564x, ice4564th); shown separately")
     g.add_argument("--max-candidates", type=int, default=12, help="mutations per username (default 12)")
+    g.add_argument("-n", "--numbers", metavar="FROM-TO",
+                   help="also try the name with a number appended: --numbers 1-10 -> ice1 ... ice10 (max 100)")
     g.add_argument("--show-mutations", action="store_true", help="print the mutations of each username, then exit")
     g.add_argument("-w", "--web-search", action="store_true",
                    help='also search DuckDuckGo/Bing for "username" site:instagram.com ... and keep the hits as evidence')
@@ -118,7 +121,8 @@ def _config(args: argparse.Namespace) -> SearchConfig:
                         max_candidates=max(0, args.max_candidates), domains=not args.no_domains,
                         max_domains=max(0, args.max_domains), web_search=args.web_search,
                         max_search_queries=max(0, args.max_search), cache=not args.no_cache,
-                        cache_ttl=max(0.0, args.cache_ttl) * 3600, host_interval=max(0.0, args.rate))
+                        cache_ttl=max(0.0, args.cache_ttl) * 3600, host_interval=max(0.0, args.rate),
+                        numbers=parse_range(getattr(args, "numbers", None)))
 
 
 def _print_result(r: dict, print_all: bool) -> None:
@@ -408,11 +412,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.show_mutations:
-        from .mutations import mutations
+        from .mutations import mutations, numbered
         for u in args.usernames:
             print(C.bold(u))
             for c in mutations(u, max(1, args.max_candidates)):
                 print(f"  {c.username:<28} {C.dim(c.rule)}")
+            if args.numbers and parse_range(args.numbers):
+                names = [c.username for c in numbered(u, *parse_range(args.numbers))]
+                print(f"  {C.dim('เติมเลข:')} {', '.join(names)}")
         return 0
 
     if args.clear_cache or args.changes or args.runs:
