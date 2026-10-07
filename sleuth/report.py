@@ -36,7 +36,21 @@ MARK = {True: "✓", False: "✗", None: "·"}
 CONF_TH = {"high": "สูง", "medium": "กลาง", "low": "ต่ำ"}
 KIND_TH = {"account": "บัญชี", "email": "อีเมล", "domain": "เว็บไซต์", "lead": "เบาะแส", "mention": "กล่าวถึง"}
 TIMELINE_TH = {"created": "สร้างบัญชี", "archived": "archive.org", "first_seen": "พบครั้งแรก", "change": "เปลี่ยนแปลง",
-               "run": "ค้นหา"}
+               "run": "ค้นหา", "username": "username"}
+RISK_TH = {"LOW": "เสี่ยงผิดคนต่ำ", "MEDIUM": "เสี่ยงผิดคนกลาง", "HIGH": "เสี่ยงผิดคนสูง"}
+PRIO_TH = {"high": "สำคัญ", "medium": "ควรทำ", "low": "เสริม"}
+
+
+def _points(sig: dict[str, Any]) -> str:
+    p = int(sig.get("points", 0))
+    return f"+{p:02d}" if p > 0 else f"{p:03d}" if p < 0 else "-00"
+
+
+def _breakdown_html(i: dict[str, Any]) -> str:
+    rows = "".join(f'<li><b class="{"pos" if x["points"] > 0 else "neg" if x["points"] < 0 else "zero"}">{_points(x)}</b> '
+                   f'{escape(x["label"])}</li>' for x in i.get("signals", []))
+    risk = f' · <span class="risk {escape(i["fp_risk"])}">{RISK_TH[i["fp_risk"]]}</span>' if i.get("fp_risk") else ""
+    return f'<ul class="bd">{rows}<li class="tot"><b>{int(i.get("score", 0))}</b> Confidence{risk}</li></ul>' if rows else ""
 
 
 def _day(value: str) -> str:
@@ -140,7 +154,37 @@ def to_md(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> 
            f"| ความมั่นใจกลาง | {s.get('medium', 0)} |",
            f"| ความมั่นใจต่ำ | {s.get('low', 0)} |",
            f"| การเปลี่ยนแปลงของโปรไฟล์ | {s.get('changes', 0)} |", ""]
-    clusters = meta.get("clusters") or []
+    for c in meta.get("contradictions") or []:
+        if c is meta["contradictions"][0]:
+            out += ["## ⚠ Contradictory evidence detected", "",
+                    "> อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน", ""]
+        out.append(f"- **{_md(c['label'])}** ({_md(c['scope_label'])}): {_md(c['message'])}")
+        out += [f"  - {_md(v['source'])}: {_md(v['value'])}" for v in c["values"][:8]]
+    if meta.get("contradictions"):
+        out.append("")
+    entities = meta.get("entities") or []
+    if entities:
+        out += ["## Entity resolution", ""]
+        for e in entities[:10]:
+            out.append(f"### {e['title']} · {e['confidence']}%" + ("" if e.get("evidence_based") else " (มีแค่ชื่อคล้ายกัน)"))
+            out.append("- aliases: " + " ≈ ".join(f"`{_md(a)}`" for a in e["aliases"]))
+            out += [f"- [{_md(a['site'])} @{_md(a['username'])}]({a['url']}) — {a['score']}" for a in e["accounts"][:20]]
+            out += [f"  - เพราะ: {_md(w)}" for w in e["reasons"][:6]]
+            out.append("")
+    identity = [i for i in meta.get("identity") or [] if i.get("signals")][:15]
+    if identity:
+        out += ["## Confidence (ที่มาของคะแนน)", ""]
+        for i in identity:
+            out += [f"**{_md(i['site'])} @{_md(i['username'])}** — Confidence {i['score']}%"
+                    + (f" · False-positive risk: {i['fp_risk']}" if i.get("fp_risk") else ""), "", "```"]
+            out += [f"{_points(x)} {x['label']}" for x in i["signals"]]
+            out += ["```", ""]
+    plan = meta.get("plan") or []
+    if plan:
+        out += ["## Next searches", ""]
+        out += [f"{x['n']}. **{_md(x['title'])}** ({PRIO_TH.get(x['priority'], x['priority'])}) — {_md(x['why'])}" for x in plan]
+        out.append("")
+    clusters = [] if entities else meta.get("clusters") or []
     if clusters:
         out += ["## ตัวตนที่น่าจะเป็นคนเดียวกัน", ""]
         for c in clusters:
@@ -178,6 +222,17 @@ def to_md(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> 
         for c in changes:
             out.append(f"- **{_md(c['site'])} @{_md(c['username'])}** {_md(c.get('label', c['field']))}: "
                        f"{_md(c.get('old') or '—')} → {_md(c.get('new') or '—')}")
+        out.append("")
+    edges = [e for e in (meta.get("graph") or {}).get("edges", []) if e.get("evidence") and e["kind"] != "found"]
+    if edges:
+        out += ["## Evidence graph: หลักฐานของแต่ละเส้น", "", "| # | จาก | ไป | ประเภท | หลักฐาน |", "|---:|---|---|---|---|"]
+        out += [f"| {e.get('n', '')} | {_md(e['source'])} | {_md(e['target'])} | {_md(e['label'])} | {_md('; '.join(e['evidence'][:4]))} |"
+                for e in edges[:80]]
+        out.append("")
+    replay = meta.get("replay") or []
+    if replay:
+        out += ["## Investigation replay", ""]
+        out += [f"- `+{x['s']}s` **{_md(x['action'])}** {_md(x['detail'])}" for x in replay[:200]]
         out.append("")
     hits = (meta.get("search") or {}).get("hits") or []
     if hits:
@@ -228,9 +283,35 @@ def to_html(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -
         f'<div class="idrow"><span class="conf {escape(i["confidence"])}">{CONF_TH[i["confidence"]]}'
         f'{" " + str(i["score"]) if i.get("score") is not None else ""}</span>'
         f'<div>{_linkify(i["url"])} <b>{escape(i["site"])}</b> @{escape(i["username"])}'
-        f'<p>{escape(" · ".join(i.get("evidence", [])))}</p></div></div>'
+        f'<p>{escape(" · ".join(i.get("evidence", [])))}</p>{_breakdown_html(i)}</div></div>'
         for i in identity)
-    clusters = meta.get("clusters") or []
+    entities = meta.get("entities") or []
+    entity_html = "".join(
+        f'<div class="conn"><span class="pct">{int(e["confidence"])}%</span><b>{escape(e["title"])}</b> '
+        f'<code>{escape(" ≈ ".join(e["aliases"][:8]))}</code>'
+        f'{"" if e.get("evidence_based") else " <small class=warnc>มีแค่ชื่อคล้ายกัน</small>"}'
+        f'{" <small class=badc>⚠ ขัดแย้ง</small>" if e.get("contradictions") else ""}'
+        f'<p class="note" style="margin:6px 0 0">{" · ".join(_linkify_text(a["url"], a["site"] + " " + str(a["score"])) for a in e["accounts"][:25])}</p>'
+        f'<ul>{"".join("<li class=y>✓ " + escape(w) + "</li>" for w in e["reasons"][:8])}</ul></div>'
+        for e in entities[:12])
+    contra = meta.get("contradictions") or []
+    contra_html = "".join(
+        f'<div class="ci"><b>{escape(c["label"])}</b> · {escape(c["scope_label"])}<br>{escape(c["message"])}'
+        f'<br><small>{escape(" · ".join(v["source"] + ": " + v["value"] for v in c["values"][:8]))}</small></div>'
+        for c in contra)
+    plan = meta.get("plan") or []
+    plan_html = "".join(
+        f'<li><span class="prio {escape(x["priority"])}">{PRIO_TH.get(x["priority"], x["priority"])}</span> '
+        f'<b>{escape(x["title"])}</b><br><small>{escape(x["why"])}</small></li>' for x in plan)
+    replay = meta.get("replay") or []
+    replay_rows = "".join(
+        f'<tr><td>+{escape(str(x["s"]))}s</td><td>{escape(x["action"])}</td><td>{escape(x["detail"])}</td></tr>'
+        for x in replay[:300])
+    edge_rows = "".join(
+        f'<tr id="edge-{e.get("n", "")}"><td>#{e.get("n", "")}</td><td>{escape(e["source"])} → {escape(e["target"])}</td>'
+        f'<td>{escape(e["label"])}</td><td>{"<br>".join(escape(x) for x in e.get("evidence", [])[:6])}</td></tr>'
+        for e in (meta.get("graph") or {}).get("edges", []) if e.get("evidence") and e["kind"] != "found")
+    clusters = [] if entities else meta.get("clusters") or []
     cluster_html = "".join(
         f'<div class="conn"><span class="pct">{int(c["confidence"])}%</span>'
         f'{" · ".join(_linkify_text(a["url"], a["site"] + " @" + a["username"]) for a in c["accounts"])}'
@@ -382,6 +463,17 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
 .finding .score.high {{ color:var(--high); }} .finding .score.medium {{ color:var(--medium); }}
 .finding .kind {{ font-size:12px; color:var(--muted); }}
 .finding .fmeta {{ font-size:13px; }}
+.bd {{ list-style:none; padding:0; margin:6px 0 0; font:12px/1.5 ui-monospace,Consolas,monospace; }}
+.bd b {{ display:inline-block; min-width:34px; text-align:right; }} .bd .pos {{ color:var(--ok); }} .bd .neg {{ color:var(--bad); }} .bd .zero {{ color:var(--muted); }}
+.bd .tot {{ border-top:1px solid var(--line); margin-top:2px; }}
+.risk {{ font-size:11px; font-weight:700; border-radius:6px; padding:0 6px; }} .risk.LOW {{ color:var(--ok); }} .risk.MEDIUM {{ color:var(--medium); }} .risk.HIGH {{ color:var(--high); }}
+.warnbox {{ border:1px solid var(--high); border-radius:10px; padding:12px 16px; margin:0 0 18px; }}
+.warnbox h2 {{ color:var(--high); margin:0 0 4px; }}
+.warnbox .ci {{ padding:6px 0; border-top:1px solid var(--line); font-size:13px; }}
+.plan {{ padding-left:20px; }} .plan li {{ margin-bottom:6px; }}
+.prio {{ font-size:11px; font-weight:700; border-radius:6px; padding:0 6px; border:1px solid var(--line); }}
+.prio.high {{ color:var(--high); }} .prio.medium {{ color:var(--medium); }}
+.warnc {{ color:var(--warn); }} .badc {{ color:var(--high); }}
 .finding ul {{ margin:10px 0 0; padding-left:4px; list-style:none; font-size:13px; }}
 .finding li a {{ color:var(--accent); word-break:break-all; }}
 .timeline {{ list-style:none; padding:0 0 0 14px; margin:0; border-left:2px solid var(--line); }}
@@ -416,15 +508,21 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
   <h1>Sleuth Report</h1>
   <p class="sub">เป้าหมาย: <b>{escape(', '.join(targets))}</b> · username ที่ค้นทั้งหมด {len(usernames)} ชื่อ · {escape(when)}</p>
   <section class="stats">{stats}</section>
+  {'<section class="warnbox"><h2>⚠ Contradictory evidence detected</h2><p class="note" style="margin:0 0 6px">Do not treat these profiles as confirmed identity. อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน</p>' + contra_html + '</section>' if contra_html else ''}
   <nav class="toc">{''.join(f'<a href="#{a}">{t}</a>' for a, t, ok in (
-      ("identities", "ตัวตน", clusters), ("evidence", "หลักฐาน", findings), ("graph", "Identity Graph", graph_svg),
+      ("identities", "ตัวตน", clusters or entities), ("plan", "Next searches", plan), ("evidence", "หลักฐาน", findings),
+      ("graph", "Identity Graph", graph_svg), ("replay", "Replay", replay),
       ("timeline", "Timeline", timeline), ("changes", "การเปลี่ยนแปลง", changes), ("search", "Search engine", hits),
       ("accounts", "บัญชีทั้งหมด", True)) if ok)}</nav>
   {'<h2 id="identities">ตัวตนที่น่าจะเป็นคนเดียวกัน</h2><p class="note">รวมบัญชีที่มีหลักฐานเชื่อมกัน (ลิงก์ถึงกัน ชื่อ/bio/รูป/อีเมล/เว็บไซต์ตรงกัน) ตัวเลข = หลักฐานที่อ่อนที่สุดที่เชื่อมบัญชีในกลุ่ม</p>' + cluster_html if cluster_html else ''}
-  {'<h2>บัญชีที่น่าจะเป็นของเป้าหมาย</h2>' + identity_html if identity_html else ''}
+  {'<h2 id="identities">Entity resolution: ตัวตนที่เป็นไปได้</h2><p class="note">username ที่เป็นชื่อเดียวกันในรูปแบบต่าง ๆ รวมกับกลุ่มที่มีหลักฐานเชื่อมกัน · กลุ่มที่มีแค่ชื่อคล้ายกันได้คะแนนไม่เกิน 40</p>' + entity_html if entity_html else ''}
+  {'<h2>บัญชีที่น่าจะเป็นของเป้าหมาย (ที่มาของคะแนน)</h2>' + identity_html if identity_html else ''}
+  {'<h2 id="plan">Next searches</h2><p class="note">ขั้นต่อไปที่ระบบแนะนำจากหลักฐานที่เจอ</p><ol class="plan">' + plan_html + '</ol>' if plan_html else ''}
   {'<h2>ความเชื่อมโยงที่เป็นไปได้ (Possible connections)</h2><p class="note">เทียบข้อมูลสาธารณะของบัญชีที่เจอทีละคู่ คะแนนสูงแปลว่าควรตรวจต่อ ไม่ได้ยืนยันว่าเป็นคนเดียวกัน</p>' + conn_html if conn_html else ''}
   {'<h2 id="evidence">หลักฐาน (Findings)</h2><p class="note">แต่ละรายการบอกว่าเจอจากอะไร (Source) หลักฐานที่รองรับ เห็นครั้งแรกเมื่อไร ตรวจล่าสุดเมื่อไร และความมั่นใจ 0–100</p>' + findings_html if findings_html else ''}
   {'<h2 id="graph">Identity Graph</h2><p class="note">username → บัญชี → ลิงก์/เว็บไซต์ → อีเมล/บัญชีถัดไป · เส้นประส้ม = อาจเชื่อมโยงกัน · เส้นประฟ้า = จาก search engine · กดกล่องเพื่อไปที่หลักฐาน</p><div class="graph">' + graph_svg + '</div>' if graph_svg else ''}
+  {'<h2>หลักฐานของแต่ละเส้นในกราฟ</h2><table><tr><th>#</th><th>เส้น</th><th>ประเภท</th><th>หลักฐาน</th></tr>' + edge_rows + '</table>' if edge_rows else ''}
+  {'<h2 id="replay">Investigation replay</h2><details><summary>' + str(len(replay)) + ' ขั้นตอนที่ระบบทำ</summary><table><tr><th>เวลา</th><th>ขั้น</th><th>รายละเอียด</th></tr>' + replay_rows + '</table></details>' if replay_rows else ''}
   {'<h2 id="timeline">Timeline</h2><ol class="timeline">' + timeline_html + '</ol>' if timeline_html else ''}
   {'<h2 id="changes">การเปลี่ยนแปลงของโปรไฟล์ (เทียบกับการค้นครั้งก่อน)</h2><table><tr><th>บัญชี</th><th>อะไรเปลี่ยน</th><th>เดิม</th><th>ใหม่</th><th>ช่วงเวลา</th></tr>' + change_rows + '</table>' if changes else ''}
   {'<h2 id="search">ผลจาก search engine</h2><p class="note">' + escape(engines) + '</p><table><tr><th>หน้า</th><th>Engine</th><th>คำค้น</th><th>กล่าวถึง</th></tr>' + hit_rows + '</table>' if hits else ''}
@@ -499,7 +597,9 @@ def _graph_svg(graph: dict[str, Any], linkable: set[str] | None = None, max_node
             sx, tx = x1 + box_w, x2
             mid = (sx + tx) / 2
             d = f"M{sx},{sy} C{mid},{sy} {mid},{ty} {tx},{ty}"
-        parts.append(f'<path class="e {escape(e["kind"])}" d="{d}"><title>{escape(e["label"])}</title></path>')
+        title = f'#{e.get("n", "")} {e["label"]}: ' + "; ".join(e.get("evidence", [])[:3])
+        path = f'<path class="e {escape(e["kind"])}" d="{d}"><title>{escape(title)}</title></path>'
+        parts.append(f'<a href="#edge-{e["n"]}">{path}</a>' if e.get("n") and e["kind"] != "found" and e.get("evidence") else path)
     for nid in shown:
         n, (x, y) = nodes[nid], pos[nid]
         cls = n["type"] + (" candidate" if n.get("query") == "candidate" else "")

@@ -1,4 +1,9 @@
-"""Small local web UI: streams search results to the browser over SSE."""
+"""Small local web UI: streams search results to the browser over SSE.
+
+Also serves the investigation workspace (cases, watchlist + alerts, the
+local intelligence database) and runs due watchlist targets in the
+background while the server is open.
+"""
 
 from __future__ import annotations
 
@@ -10,8 +15,8 @@ from pathlib import Path
 
 from aiohttp import web
 
-from . import __version__, report
-from .engine import SearchConfig, Searcher
+from . import __version__, report, websearch
+from .engine import SearchConfig, Searcher, make_session
 from .history import History
 from .mutations import mutations, numbered, parse_range
 from .sites import all_tags, filter_sites, load_sites
@@ -118,6 +123,8 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
                 "identity": dicts("identity"), "connections": dicts("connections"), "clusters": dicts("clusters"),
                 "domains": dicts("domains"), "queries": dicts("queries"), "findings": dicts("findings"),
                 "timeline": dicts("timeline"), "changes": dicts("changes"), "summary": obj("summary"),
+                "entities": dicts("entities"), "contradictions": dicts("contradictions"), "plan": dicts("plan"),
+                "replay": dicts("replay"),
                 "search": {"hits": [h for h in search_data.get("hits", []) if isinstance(h, dict)],
                            "engines": [e for e in search_data.get("engines", []) if isinstance(e, dict)]},
                 "graph": {"nodes": [n for n in graph.get("nodes", []) if isinstance(n, dict)],
@@ -173,7 +180,186 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
     app.router.add_get("/api/mutations", mutation_preview)
     app.router.add_static("/static", STATIC)
     add_scan_routes(app)
+    add_workspace_routes(app)
     return app
+
+
+WATCH_TICK = 60  # seconds between looks at the watchlist
+
+
+def add_workspace_routes(app: web.Application) -> None:
+    """Runs, cases, watchlist, alerts, intelligence DB and the custom query builder."""
+    from .watch import DEFAULT_INTERVAL_HOURS, check_target, run_due
+
+    app["watch_lock"] = asyncio.Lock()
+    app["watch_status"] = {"running": None, "last": None}
+
+    async def watcher(app_: web.Application):
+        async def loop() -> None:
+            while True:
+                await asyncio.sleep(WATCH_TICK)
+                h = app_["history"]
+                if not h or app_["watch_lock"].locked():
+                    continue
+                async with app_["watch_lock"]:
+                    for w in h.watch_due():
+                        app_["watch_status"]["running"] = w["target"]
+                        res = await check_target(h, w["target"], w["options"], app_["all_sites"], app_["all_sites"])
+                        app_["watch_status"].update(running=None, last=res)
+        task = asyncio.create_task(loop())
+        yield
+        task.cancel()
+
+    app.cleanup_ctx.append(watcher)
+
+    def hist(request: web.Request) -> History:
+        h = request.app["history"]
+        if not h:
+            raise web.HTTPServiceUnavailable(text="history database is disabled")
+        return h
+
+    def _id(request: web.Request) -> int:
+        try:
+            return int(request.match_info["id"])
+        except ValueError:
+            raise web.HTTPNotFound()
+
+    async def body(request: web.Request) -> dict:
+        try:
+            data = await request.json()
+        except (ValueError, json.JSONDecodeError):
+            raise web.HTTPBadRequest(text="expected JSON")
+        if not isinstance(data, dict):
+            raise web.HTTPBadRequest(text="expected a JSON object")
+        return data
+
+    async def workspace(_: web.Request) -> web.FileResponse:
+        return web.FileResponse(STATIC / "workspace.html")
+
+    # -- runs (replay / reopen) --
+    async def runs(request: web.Request) -> web.Response:
+        return web.json_response(hist(request).list_runs(request.query.get("u") or None, limit=50))
+
+    async def run_detail(request: web.Request) -> web.Response:
+        r = hist(request).get_run(_id(request))
+        if not r:
+            raise web.HTTPNotFound()
+        return web.json_response(r)
+
+    # -- cases --
+    async def cases(request: web.Request) -> web.Response:
+        h = hist(request)
+        if request.method == "POST":
+            data = await body(request)
+            targets = [t for t in data.get("targets", []) if isinstance(t, str)][:20]
+            cid = h.create_case(str(data.get("name", "Case"))[:120], targets, str(data.get("notes", ""))[:20000])
+            if isinstance(data.get("run_id"), int):
+                h.update_case(cid, add_run=data["run_id"])
+            return web.json_response({"id": cid})
+        return web.json_response(h.list_cases())
+
+    async def case_detail(request: web.Request) -> web.Response:
+        h, cid = hist(request), _id(request)
+        if request.method == "DELETE":
+            return web.json_response({"deleted": h.delete_case(cid)})
+        if request.method == "PATCH":
+            data = await body(request)
+            ok = h.update_case(
+                cid, name=str(data["name"])[:120] if "name" in data else None,
+                notes=str(data["notes"])[:20000] if "notes" in data else None,
+                status=data.get("status") if data.get("status") in ("open", "closed") else None,
+                add_targets=[t for t in data.get("add_targets", []) if isinstance(t, str)][:20],
+                remove_targets=[t for t in data.get("remove_targets", []) if isinstance(t, str)],
+                add_run=data.get("add_run") if isinstance(data.get("add_run"), int) else None)
+            if not ok:
+                raise web.HTTPNotFound()
+        c = h.get_case(cid)
+        if not c:
+            raise web.HTTPNotFound()
+        return web.json_response(c)
+
+    # -- watchlist + alerts --
+    async def watch(request: web.Request) -> web.Response:
+        h = hist(request)
+        if request.method == "POST":
+            data = await body(request)
+            target = str(data.get("target", "")).strip().lstrip("@")[:60]
+            if not target:
+                raise web.HTTPBadRequest(text="missing target")
+            opts = data.get("options") if isinstance(data.get("options"), dict) else {}
+            h.watch_add(target, float(_clamp(str(data.get("interval_hours", "")), DEFAULT_INTERVAL_HOURS, 0.25, 24 * 30)),
+                        {k: v for k, v in opts.items() if k in ("depth", "variants", "websearch", "avatars")})
+        return web.json_response({"items": h.watch_list(), "status": request.app["watch_status"],
+                                  "unseen": len(h.alerts(unseen_only=True))})
+
+    async def watch_delete(request: web.Request) -> web.Response:
+        return web.json_response({"deleted": hist(request).watch_remove(request.match_info["target"])})
+
+    async def watch_run(request: web.Request) -> web.Response:
+        h = hist(request)
+        data = await body(request) if request.can_read_body else {}
+        targets = [data["target"]] if isinstance(data.get("target"), str) else [w["target"] for w in h.watch_list()]
+        if request.app["watch_lock"].locked():
+            return web.json_response({"started": False, "reason": "busy"})
+
+        async def go() -> None:
+            async with request.app["watch_lock"]:
+                request.app["watch_status"]["running"] = ", ".join(targets)
+                results = await run_due(h, request.app["all_sites"], request.app["all_sites"], targets)
+                request.app["watch_status"].update(running=None, last=results[-1] if results else None)
+
+        asyncio.create_task(go())
+        return web.json_response({"started": True, "targets": targets})
+
+    async def alerts(request: web.Request) -> web.Response:
+        h = hist(request)
+        if request.method == "POST":
+            data = await body(request)
+            ids = [i for i in data.get("ids", []) if isinstance(i, int)] or None
+            return web.json_response({"marked": h.mark_alerts_seen(ids)})
+        return web.json_response(h.alerts(unseen_only=request.query.get("unseen") == "1"))
+
+    # -- intelligence database --
+    async def intel(request: web.Request) -> web.Response:
+        h, q = hist(request), request.query.get("q", "").strip()[:100]
+        return web.json_response({"stats": h.intel_stats(), "results": h.intel_search(q) if q else None})
+
+    # -- custom query builder --
+    async def query(request: web.Request) -> web.Response:
+        data = await body(request)
+        items = []
+        for q in data.get("queries", [])[:10]:
+            if isinstance(q, dict) and isinstance(q.get("query"), str) and q["query"].strip():
+                items.append({"query": q["query"].strip()[:300], "username": str(q.get("username", ""))[:60],
+                              "label": str(q.get("label", "custom"))[:60]})
+        if not items and any(data.get(k) for k in ("username", "keywords", "platform")):
+            built = websearch.build_query(str(data.get("username", "")), str(data.get("platform", "")),
+                                          str(data.get("keywords", "")), str(data.get("after", "")),
+                                          str(data.get("before", "")))
+            items = [{"query": built, "username": str(data.get("username", "")), "label": "custom"}]
+        if not items:
+            raise web.HTTPBadRequest(text="nothing to search")
+        if data.get("dry_run"):
+            return web.json_response({"queries": items, "links": [
+                {"google": "https://www.google.com/search?q=" + websearch.quote_plus(i["query"]),
+                 "bing": "https://www.bing.com/search?q=" + websearch.quote_plus(i["query"]),
+                 "duckduckgo": "https://duckduckgo.com/?q=" + websearch.quote_plus(i["query"])} for i in items]})
+        async with make_session(SearchConfig()) as session:
+            out = await websearch.search(session, [], custom=items, sites=request.app["all_sites"],
+                                         now=lambda: datetime.now().isoformat(timespec="seconds"))
+        return web.json_response(out)
+
+    app.router.add_get("/workspace", workspace)
+    app.router.add_get("/api/runs", runs)
+    app.router.add_get(r"/api/runs/{id:\d+}", run_detail)
+    app.router.add_route("*", "/api/cases", cases)
+    app.router.add_route("*", r"/api/cases/{id:\d+}", case_detail)
+    app.router.add_route("*", "/api/watch", watch)
+    app.router.add_post("/api/watch/run", watch_run)
+    app.router.add_delete("/api/watch/{target}", watch_delete)
+    app.router.add_route("*", "/api/alerts", alerts)
+    app.router.add_get("/api/intel", intel)
+    app.router.add_post("/api/query", query)
 
 
 def add_scan_routes(app: web.Application) -> None:

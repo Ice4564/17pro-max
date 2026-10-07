@@ -22,8 +22,10 @@ import aiohttp
 from .extractor import clean_info, extract
 from . import __version__, avatars, websearch
 from .evidence import account_id, build_findings, build_graph, build_timeline, domain_id, summary
-from .identity import clusters as identity_clusters
-from .linker import find_social, identity_summary, match_social
+from . import contradictions as contra
+from .identity import clusters as identity_clusters, entities as find_entities, handle_core
+from .linker import apply_contradictions, find_social, identity_summary, match_social
+from .planner import plan as make_plan
 from .mutations import mutations, numbered
 from .similarity import JUNK_HOSTS, connections as find_connections, emails_in_text
 from .sites import Site
@@ -395,6 +397,8 @@ def discover_usernames(result: Result, sites: list[Site], skip_brand: bool = Tru
     return out
 
 
+TZ_IN_PAGE = re.compile(r"\b(?:Asia|Europe|America|Australia|Africa)/[A-Z][A-Za-z_]+(?:/[A-Z][A-Za-z_]+)?\b")
+
 # Hosts that are platforms, not someone's own website.
 PLATFORM_HOSTS = re.compile(
     r"(^|\.)(instagram\.com|facebook\.com|fb\.com|tiktok\.com|twitter\.com|x\.com|threads\.net|threads\.com|"
@@ -447,12 +451,29 @@ class Searcher:
         self.graph: dict[str, list] = {"nodes": [], "edges": []}
         self.limiter = HostLimiter(self.cfg.host_interval)
         self.cache_hits = 0
+        self._uncommitted = 0
+        self.contradictions: list[dict[str, Any]] = []
+        self.entities: list[dict[str, Any]] = []
+        self.plan: list[dict[str, Any]] = []
+        self.replay: list[dict[str, Any]] = []  # what the engine did, in order (investigation replay)
+        self._replay_sent = 0
+        self._t0 = time.perf_counter()
+        self.skipped: list[dict[str, Any]] = []  # usernames the owner published that depth/budget left unsearched
         self._by_name = {s.name: s for s in self.all_sites}
         self._site_hosts = {_host(s.main, keep_port=True) for s in self.all_sites}
         self._budget = self.cfg.max_usernames
         self._linked: dict[tuple[str, str], Result] = {}
         self._via: dict[tuple[str, str], list[str]] = {}  # (site, user) -> nodes that linked to it
         self._domain_queue: list[tuple[str, str, str, bool]] = []  # (url, source node, label, names the person)
+
+    # ---- investigation replay ---------------------------------------------
+    def _log(self, action: str, detail: str = "", ref: str | None = None) -> None:
+        self.replay.append({"n": len(self.replay) + 1, "t": now_iso(), "s": round(time.perf_counter() - self._t0, 1),
+                            "action": action, "detail": detail, "ref": ref})
+
+    def _drain(self) -> list[dict[str, Any]]:
+        new, self._replay_sent = self.replay[self._replay_sent:], len(self.replay)
+        return [{"type": "log", **x} for x in new]
 
     def _key(self, site: str, username: str) -> tuple[str, str]:
         return site.lower(), username.lower()
@@ -467,6 +488,8 @@ class Searcher:
             q = self.queries[k]
             if from_node and from_node not in q["from"]:
                 q["from"].append(from_node)
+                if why:
+                    q.setdefault("from_why", {})[from_node] = why
             return False
         self.queries[k] = {"username": username, "query": query, "depth": depth, "source": source,
                            "candidate_of": candidate_of, "rule": rule, "from": [from_node] if from_node else [],
@@ -525,13 +548,17 @@ class Searcher:
                     events.append({"type": "result", **lr.to_dict()})
             # follow the new username on every site
             if d.username.lower() in self.queries:
-                self._add_query(d.username, "discovered", depth + 1, from_node=src_node)
+                self._add_query(d.username, "discovered", depth + 1, from_node=src_node, why=why)
             elif depth < cfg.depth and self._budget > 0:
                 self._budget -= 1
                 source = f"{src_short} ({d.platform or 'link'})"
                 self._add_query(d.username, "discovered", depth + 1, source=source, from_node=src_node, why=why)
                 next_level.append(d.username)
+                self._log("เจอ username ใหม่", f"@{d.username} {why} → จะค้นต่อในชั้น {depth + 1}", src_node)
                 events.append({"type": "discovered", "username": d.username, "source": source, "depth": depth + 1})
+            elif not any(x["username"].lower() == d.username.lower() for x in self.skipped):
+                self.skipped.append({"username": d.username, "why": why, "source": src_node, "platform": d.platform})
+                self._log("ข้าม username", f"@{d.username} {why} (เกินจำนวนชั้นหรือโควตา)", src_node)
         return events
 
     def _queue_domains(self, result: Result) -> None:
@@ -592,7 +619,9 @@ class Searcher:
         # addresses the site publishes (mailto: links, contact text); a personal site's are the owner's
         mailto = re.findall(r'href=["\']mailto:([^"\'?]+)', text, re.I)
         emails = sorted(emails_in_text(" ".join(mailto)) | emails_in_text(re.sub(r"<[^>]+>", " ", text)))
-        rec.update(status="ok", title=info.get("name", ""), strong=strong, links=all_links, emails=emails[:5])
+        tz = TZ_IN_PAGE.search(text)  # e.g. a calendar widget or "timezone": "Asia/Bangkok"
+        rec.update(status="ok", title=info.get("name", ""), strong=strong, links=all_links, emails=emails[:5],
+                   timezone=tz.group(0) if tz else "")
         return rec
 
     async def _expand_domains(self, session: aiohttp.ClientSession, depth: int,
@@ -645,6 +674,9 @@ class Searcher:
             if not personal:
                 rec["emails"] = []  # a company's contact address is not the person's
             self.domains.append(rec)
+            self._log("ตรวจเว็บไซต์", f"{rec['domain']}: {rec['status']}"
+                      + (f", ลิงก์ {', '.join(rec['found_links'][:4])}" if rec.get("found_links") else "")
+                      + (f", อีเมล {', '.join(rec['emails'])}" if rec.get("emails") else ""), domain_id(rec["domain"]))
             yield {"type": "domain", **rec}
             for ev in self._handle_discoveries(disc, domain_id(rec["domain"]), f"เว็บไซต์ {rec['domain']}",
                                                rec["domain"], depth, next_level):
@@ -674,6 +706,10 @@ class Searcher:
         d["_strong_links"] = list(getattr(r, "_strong_links", []))
         try:
             self.history.put_cache(site.name, r.username, site_signature(site, self.cfg), d)
+            self._uncommitted += 1
+            if self._uncommitted >= 20:  # never hold the database's write lock for a whole search
+                self.history.commit()
+                self._uncommitted = 0
         except sqlite3.Error:
             pass
 
@@ -744,6 +780,13 @@ class Searcher:
                         q = self.queries[username.lower()]
                         yield {"type": "start", "username": username, "depth": depth, "query": q["query"],
                                "candidate_of": q["candidate_of"], "source": q["source"], "total": len(self.sites)}
+                    typed_n = sum(1 for u in level if self.queries[u.lower()]["query"] != "candidate")
+                    self._log("ค้น username", f"ชั้น {depth}: {', '.join('@' + u for u in level[:8])}"
+                              + (f" และอีก {len(level) - 8}" if len(level) > 8 else "")
+                              + f" บน {len(self.sites)} เว็บ" + (f" ({len(level) - typed_n} ชื่อเป็นชื่อใกล้เคียง)"
+                                                                 if len(level) > typed_n else ""))
+                    for ev in self._drain():
+                        yield ev
 
                     tasks = [asyncio.create_task(guarded(site, u, depth))
                              for u in level for site in self.sites
@@ -764,6 +807,10 @@ class Searcher:
                             yield {"type": "result", **result.to_dict()}
                             if result.status is not Status.FOUND:
                                 continue
+                            self._log("พบบัญชี", f"{result.site} @{result.username}"
+                                      + (" (cache)" if result.cached else f" HTTP {result.http_status}")
+                                      + (f", เว็บไซต์ {result.info['website']}" if result.info.get("website") else ""),
+                                      account_id(result.site, result.username))
                             found = discover_usernames(result, self.all_sites)
                             for ev in self._handle_discoveries(found, account_id(result.site, result.username),
                                                                f"{result.site} (@{result.username})",
@@ -772,11 +819,15 @@ class Searcher:
                                 yield ev
                             if cfg.domains and depth < cfg.depth:
                                 self._queue_domains(result)
+                            for ev in self._drain():
+                                yield ev
                     finally:
                         for t in tasks:
                             t.cancel()
                     if self._domain_queue:
                         async for ev in self._expand_domains(session, depth, next_level):
+                            yield ev
+                        for ev in self._drain():
                             yield ev
                     level = next_level
 
@@ -785,11 +836,16 @@ class Searcher:
                     if manual:
                         yield {"type": "progress", "message": "กำลังค้น IG/FB/TikTok/X ใน Wayback Machine..."}
                         for r in await archive_lookup(session, manual):
+                            self._log("archive.org", f"เคยเก็บหน้า {r.site} @{r.username} ({r.info['archived']})",
+                                      account_id(r.site, r.username))
                             yield {"type": "result", **r.to_dict()}
                 if search_task:
                     if not search_task.done():
                         yield {"type": "progress", "message": "กำลังค้นใน DuckDuckGo / Bing..."}
                     self.search.update(await search_task)
+                    for q in self.search["queries"]:
+                        self._log("search engine", f"#{q.get('n', '')} {q.get('engine') or '-'}: {q['query']} → "
+                                  + (f"{q['count']} ผล" if q["status"] == "ok" else q["status"]))
                     yield {"type": "search", **self.search}
                     for ev in self._apply_search():
                         yield ev
@@ -797,9 +853,15 @@ class Searcher:
                 if cfg.avatars and avatars.available():
                     yield {"type": "progress", "message": "กำลังเทียบรูปโปรไฟล์..."}
                     hashes = await avatars.hash_avatars(session, [r.to_dict() for r in self.results])
+                    self._log("เทียบรูปโปรไฟล์", f"ดึงรูปได้ {len(hashes)} รูป")
             finally:
                 if search_task and not search_task.done():
                     search_task.cancel()
+                if self.history:  # also when the search is stopped half way
+                    try:
+                        self.history.commit()
+                    except sqlite3.Error:
+                        pass
 
         for r in self.results:
             for node in self._via.get(self._key(r.site, r.username), []):
@@ -807,34 +869,61 @@ class Searcher:
                     r.via.append(node)
         dicts = [r.to_dict() for r in self.results]
         hits = self.search["hits"]
+        options = {k: getattr(cfg, k) for k in ("depth", "variants", "numbers", "web_search", "domains", "cache")}
         self.connections = find_connections(dicts, hashes)
         self.identity = identity_summary(dicts, usernames, avatars.match_hashes(dicts, hashes), self.connections,
                                          hits)
         scores = {account_id(i["site"], i["username"]): i["score"] for i in self.identity}
         self.clusters = identity_clusters(dicts, self.connections, self.domains, scores)
+        self._log("เทียบความเชื่อมโยง", f"{len(self.connections)} คู่ที่น่าสนใจ, รวมได้ {len(self.clusters)} กลุ่มตัวตน")
+        # contradictions lower the groups' and the accounts' confidence before anything is reported
+        self.contradictions = contra.detect(dicts, self.clusters, self.identity, self.domains)
+        apply_contradictions(self.identity, contra.penalties(self.contradictions, self.clusters))
+        for c in self.contradictions:
+            self._log("⚠ หลักฐานขัดแย้ง", f"{c['scope_label']}: {c['message']}")
+        self.entities = find_entities(dicts, self.clusters, self.identity, usernames)
         self.graph = build_graph(dicts, self.queries, self.domains, self.connections, hits)
         seen: dict[tuple[str, str], dict[str, Any]] = {}
         history_changes: list[dict[str, Any]] = []
+        username_history: list[dict[str, Any]] = []
         if self.history:
             try:
-                rec = self.history.record_run(
-                    usernames, dicts, hashes, self.stats(), started=run_started,
-                    options={k: getattr(cfg, k) for k in ("depth", "variants", "numbers", "web_search", "domains", "cache")})
+                rec = self.history.record_run(usernames, dicts, hashes, self.stats(), started=run_started,
+                                              options=options, domains=self.domains, hits=hits, graph=self.graph)
                 self.run_id, self.changes, seen = rec["run_id"], rec["changes"], rec["seen"]
                 names = sorted({r["username"] for r in dicts if r["status"] == "found"} | set(usernames))
                 history_changes = self.history.changes_for(names)
+                username_history = self.history.username_history({handle_core(u) for u in usernames}, handle_core)
+                self._log("บันทึกฐานข้อมูล", f"ครั้งที่ #{self.run_id}: เปลี่ยนแปลง {len(self.changes)} รายการ")
             except sqlite3.Error as e:
                 yield {"type": "progress", "message": f"บันทึกประวัติไม่ได้: {e}"}
         self.findings = build_findings(dicts, self.identity, self.domains, hits, seen, self.queries)
-        self.timeline = build_timeline(dicts, history_changes or self.changes, seen, self.domains, run_started)
+        self.timeline = build_timeline(dicts, history_changes or self.changes, seen, self.domains, run_started,
+                                       username_history)
+        self.plan = make_plan(usernames, dicts, queries=self.queries, domains=self.domains, identity=self.identity,
+                              search=self.search, contradictions=self.contradictions, skipped=self.skipped,
+                              options=options)
+        self._log("วางแผนขั้นต่อไป", f"แนะนำ {len(self.plan)} ขั้น" + (f": {self.plan[0]['title']}" if self.plan else ""))
         self.summary = summary(usernames, dicts, self.identity, self.findings, self.clusters, self.changes,
                                hits, self.domains)
-        yield {"type": "done", "stats": self.stats(), "identity": self.identity,
-               "connections": self.connections, "clusters": self.clusters, "domains": self.domains,
-               "graph": self.graph, "queries": list(self.queries.values()), "findings": self.findings,
-               "timeline": self.timeline, "changes": self.changes, "search": self.search,
-               "summary": self.summary, "run_id": self.run_id, "started": run_started,
-               "elapsed": round(time.perf_counter() - started, 1)}
+        self.summary.update(contradictions=len(self.contradictions), entities=len(self.entities),
+                            fp_high=sum(1 for i in self.identity if i.get("fp_risk") == "HIGH"),
+                            next_steps=len(self.plan))
+        for ev in self._drain():
+            yield ev
+        done = {"type": "done", "stats": self.stats(), "identity": self.identity,
+                "connections": self.connections, "clusters": self.clusters, "entities": self.entities,
+                "contradictions": self.contradictions, "plan": self.plan, "replay": self.replay,
+                "domains": self.domains, "graph": self.graph, "queries": list(self.queries.values()),
+                "findings": self.findings, "timeline": self.timeline, "changes": self.changes, "search": self.search,
+                "summary": self.summary, "run_id": self.run_id, "started": run_started, "usernames": usernames,
+                "options": options, "elapsed": round(time.perf_counter() - started, 1)}
+        if self.history and self.run_id:
+            try:  # the whole run, so a case / the replay can reopen it without searching again
+                self.history.save_payload(self.run_id, {"results": dicts, "done": done})
+            except sqlite3.Error:
+                pass
+        yield done
 
     def stats(self) -> dict[str, int]:
         counts = {s.value: 0 for s in Status}

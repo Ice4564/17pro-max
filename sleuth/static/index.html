@@ -30,7 +30,7 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 .dash-top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
 .dash-top .target { font-size:20px; font-weight:700; overflow-wrap:anywhere; }
 .dash-top .when { color:var(--muted); font-size:13px; }
-.tiles { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+.tiles { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; }
 .tiles .stat { cursor:pointer; text-align:left; font:inherit; color:inherit; }
 .tiles .stat:hover { border-color:var(--accent); }
 .tabs { display:flex; gap:4px; flex-wrap:wrap; margin-top:14px; border-bottom:1px solid var(--line); }
@@ -173,6 +173,71 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
 .exports button:hover { border-color:var(--accent); }
 .exports b { display:block; font-size:15px; } .exports span { font-size:12px; color:var(--muted); }
 
+.nbadge { background:var(--bad); color:#fff; border-radius:99px; font-size:11px; font-weight:700; padding:0 6px; margin-left:4px; }
+.dash-actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+.warnbox { border:1px solid var(--high); background:var(--high-bg); border-radius:14px; padding:12px 16px; }
+.warnbox h2 { color:var(--high); font-size:15px; margin:0 0 2px; }
+.warnbox .c { padding:8px 0; border-top:1px solid color-mix(in srgb, var(--high) 30%, transparent); font-size:13px; }
+.warnbox .c:first-of-type { border-top:0; }
+.warnbox .vals { color:var(--muted); font-size:12px; }
+.entity { padding:10px 0; border-top:1px solid var(--line); }
+.entity:first-of-type { border-top:0; }
+.entity .head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+.entity .pct { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+.entity .aliases { font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+.entity .accts { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.entity .accts a { font-size:13px; text-decoration:none; border:1px solid var(--line); border-radius:8px; padding:2px 8px; color:var(--accent); }
+.entity .why { font-size:12px; color:var(--muted); margin-top:6px; }
+.entity .weak { font-size:11px; color:var(--warn); }
+.step { display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); }
+.step:first-of-type { border-top:0; }
+.step .t { flex:1; min-width:0; }
+.step .t b { font-size:14px; }
+.step .t div { font-size:12px; color:var(--muted); }
+.prio { font-size:11px; font-weight:700; border-radius:6px; padding:1px 6px; white-space:nowrap; }
+.prio.high { background:var(--high-bg); color:var(--high); } .prio.medium { background:var(--medium-bg); color:var(--medium); }
+.prio.low { background:var(--panel2); color:var(--muted); }
+.breakdown { font-family:ui-monospace,Consolas,monospace; font-size:12px; margin:6px 0 0; padding:0; list-style:none; }
+.breakdown li { display:flex; gap:8px; } .breakdown .pt { min-width:38px; text-align:right; font-weight:700; }
+.breakdown .pos { color:var(--ok); } .breakdown .neg { color:var(--bad); } .breakdown .zero { color:var(--muted); }
+.breakdown .total { border-top:1px solid var(--line); margin-top:2px; padding-top:2px; font-weight:700; }
+.risk { font-size:11px; font-weight:700; border-radius:6px; padding:1px 6px; white-space:nowrap; }
+.risk.LOW { background:var(--ok-bg); color:var(--ok); } .risk.MEDIUM { background:var(--medium-bg); color:var(--medium); }
+.risk.HIGH { background:var(--high-bg); color:var(--high); }
+.rel { font-size:10px; font-weight:700; border-radius:5px; padding:0 5px; margin-right:4px; white-space:nowrap; }
+.rel.HIGH { background:var(--ok-bg); color:var(--ok); } .rel.MEDIUM { background:var(--medium-bg); color:var(--medium); }
+.rel.LOW { background:var(--panel2); color:var(--muted); }
+.idrow.open .breakdown { display:block; } .idrow .breakdown { display:none; }
+.idrow .more-btn { background:none; border:0; color:var(--accent); cursor:pointer; font-size:12px; padding:0; }
+.replay { list-style:none; margin:0; padding:0; font-size:13px; }
+.replay li { display:grid; grid-template-columns:64px 140px minmax(0,1fr); gap:8px; padding:5px 0; border-top:1px solid var(--line); }
+.replay li:first-child { border-top:0; }
+.replay .tm { color:var(--muted); font-variant-numeric:tabular-nums; }
+.replay .ac { font-weight:600; }
+.replay .dt { word-break:break-word; }
+.replay .dt a { color:var(--accent); cursor:pointer; }
+.replay li.warn .ac { color:var(--high); }
+.qbuild { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+.qbuild label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+.qbuild input, .qbuild select { height:36px; border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:0 10px; color:var(--text); }
+.qprev { font-family:ui-monospace,Consolas,monospace; background:var(--panel2); border-radius:8px; padding:8px 10px; margin:10px 0; word-break:break-all; font-size:13px; }
+.ge-hit { fill:none; stroke:transparent; stroke-width:12; cursor:pointer; }
+.ge.sel-edge { stroke:var(--accent) !important; stroke-width:3 !important; opacity:1 !important; }
+.edge-ev { list-style:none; padding:0; margin:8px 0 0; font-size:13px; display:flex; flex-direction:column; gap:3px; }
+/* assistant */
+.asst-btn { position:fixed; right:18px; bottom:18px; z-index:20; height:46px; border-radius:23px; padding:0 18px; border:0; background:var(--accent); color:var(--accent-text); font-weight:700; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+.asst { position:fixed; right:18px; bottom:74px; z-index:20; width:min(400px, calc(100vw - 32px)); height:min(560px, calc(100vh - 120px)); display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.3); overflow:hidden; }
+.asst header { padding:10px 14px; border-bottom:1px solid var(--line); font-weight:700; display:flex; align-items:center; gap:8px; }
+.asst header button { margin-left:auto; border:0; background:none; color:var(--muted); font-size:18px; cursor:pointer; }
+.asst .msgs { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.asst .m { max-width:88%; padding:8px 11px; border-radius:12px; font-size:14px; white-space:pre-wrap; word-break:break-word; }
+.asst .m.me { align-self:flex-end; background:var(--accent); color:var(--accent-text); border-bottom-right-radius:4px; }
+.asst .m.bot { align-self:flex-start; background:var(--panel2); border-bottom-left-radius:4px; }
+.asst .m .acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; white-space:normal; }
+.asst form { display:flex; gap:6px; padding:10px; border-top:1px solid var(--line); }
+.asst form input { flex:1; min-width:0; height:38px; border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:0 10px; color:var(--text); }
+.asst form .btn { height:38px; padding:0 14px; }
+
 @media (max-width:1100px) { .tiles { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:980px) {
   .layout.show { grid-template-columns:1fr; }
@@ -183,6 +248,9 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   .tiles { grid-template-columns:repeat(2,1fr); }
   .search .btn.primary { width:100%; }
   .gwrap { height:420px; }
+  .replay li { grid-template-columns:52px minmax(0,1fr); }
+  .replay .ac { grid-column:2; }
+  .replay .dt { grid-column:1 / -1; }
   .tabs button { padding:8px 10px; }
 }
 </style>
@@ -194,7 +262,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
       Sleuth
     </div>
-    <nav><a href="/" class="on">ค้น Username</a><a href="/scan">สแกนเป้าหมาย</a></nav>
+    <nav><a href="/" class="on">ค้น Username</a><a href="/scan">สแกนเป้าหมาย</a><a href="/workspace">Workspace<span class="nbadge" id="alertBadge" hidden></span></a></nav>
     <div class="meta" id="meta"></div>
     <button class="theme-btn" id="themeBtn" type="button" title="สลับธีม" aria-label="สลับธีม"></button>
   </div>
@@ -248,7 +316,11 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   </section>
 
   <section class="dash" id="dash">
-    <div class="dash-top"><span class="target" id="dTarget"></span><span class="when" id="dWhen"></span></div>
+    <div class="dash-top"><span class="target" id="dTarget"></span><span class="when" id="dWhen"></span>
+      <span class="dash-actions">
+        <button type="button" class="btn ghost small" id="saveCase" title="เก็บผลครั้งนี้ไว้ใน Case">บันทึกเข้า Case</button>
+        <button type="button" class="btn ghost small" id="watchBtn" title="ตรวจซ้ำเป็นระยะ แจ้งเฉพาะสิ่งที่เปลี่ยน">เฝ้าดู (Watchlist)</button>
+      </span></div>
     <div class="tiles">
       <button type="button" class="stat ok" data-go="accounts"><b id="dFound">0</b><span>บัญชีที่พบ</span></button>
       <button type="button" class="stat link" data-go="overview"><b id="dLinked">–</b><span>บัญชีที่เชื่อมโยงกัน</span></button>
@@ -257,6 +329,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
       <button type="button" class="stat medium" data-go="evidence" data-level="medium"><b id="dMedium">–</b><span>ความมั่นใจกลาง</span></button>
       <button type="button" class="stat" data-go="evidence" data-level="low"><b id="dLow">–</b><span>ความมั่นใจต่ำ</span></button>
       <button type="button" class="stat warn" data-go="timeline"><b id="dChanges">–</b><span>โปรไฟล์เปลี่ยน</span></button>
+      <button type="button" class="stat high" data-go="overview"><b id="dContra">–</b><span>หลักฐานขัดแย้ง</span></button>
     </div>
     <div class="tabs" role="tablist" id="tabs">
       <button type="button" role="tab" data-tab="overview" aria-selected="false">ภาพรวม</button>
@@ -264,6 +337,8 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
       <button type="button" role="tab" data-tab="graph" aria-selected="false">Identity Graph</button>
       <button type="button" role="tab" data-tab="timeline" aria-selected="false">Timeline <span class="n" id="nTimeline">0</span></button>
       <button type="button" role="tab" data-tab="evidence" aria-selected="false">หลักฐาน <span class="n" id="nEvidence">0</span></button>
+      <button type="button" role="tab" data-tab="replay" aria-selected="false">Replay <span class="n" id="nReplay">0</span></button>
+      <button type="button" role="tab" data-tab="query" aria-selected="false">สร้างคำค้น</button>
       <button type="button" role="tab" data-tab="export" aria-selected="false">Export รายงาน</button>
     </div>
   </section>
@@ -271,9 +346,19 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   <div class="layout" id="layout">
     <section>
       <div class="tabpanel" data-panel="overview" hidden>
+        <div class="warnbox" id="contraBox" hidden>
+          <h2>⚠ Contradictory evidence detected</h2>
+          <p class="sub" style="color:var(--text)">อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน ระบบลดคะแนนของกลุ่มที่ขัดแย้งแล้ว</p>
+          <div id="contraList"></div>
+        </div>
+        <div class="panel" id="planPanel" hidden>
+          <h2>แผนค้นต่อ (Next searches)</h2>
+          <p class="sub">ระบบเลือกขั้นต่อไปจากหลักฐานที่เจอ ไม่ได้ยิงทุกอย่าง · กด "ทำเลย" เพื่อรันขั้นนั้น</p>
+          <div id="planList"></div>
+        </div>
         <div class="panel" id="clusters" hidden>
-          <h2>ตัวตนที่น่าจะเป็นคนเดียวกัน</h2>
-          <p class="sub">รวมบัญชีที่มีหลักฐานเชื่อมกัน: ลิงก์ถึงกัน, ชื่อ/bio/รูป/อีเมล/เว็บไซต์ตรงกัน · ตัวเลข = หลักฐานที่อ่อนที่สุดที่เชื่อมบัญชีในกลุ่ม</p>
+          <h2>Entity resolution: ตัวตนที่เป็นไปได้</h2>
+          <p class="sub">รวม username ที่เป็นชื่อเดียวกันในรูปแบบต่าง ๆ (ice4564 ≈ Ice4564 ≈ ice_4564 ≈ ice4564x) แล้วรวมกลุ่มที่มีหลักฐานเชื่อมกัน · กลุ่มที่มีแค่ชื่อคล้ายกันได้คะแนนไม่เกิน 40</p>
           <div id="clusterList"></div>
         </div>
         <div class="panel" id="identity" hidden>
@@ -348,6 +433,36 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
         <div class="flist" id="fList"></div>
       </div>
 
+      <div class="tabpanel" data-panel="replay" hidden>
+        <div class="panel">
+          <h2>Investigation replay</h2>
+          <p class="sub">ทุกขั้นที่ระบบทำ เรียงตามเวลา · กดชื่อบัญชี/เว็บเพื่อดูในกราฟ</p>
+          <ol class="replay" id="replayList"></ol>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="query" hidden>
+        <div class="panel">
+          <h2>สร้างคำค้นเอง</h2>
+          <p class="sub">[username] + [platform] + [keyword] + [ช่วงวันที่] แล้วระบบสร้างคำค้นให้ · ช่วงวันที่ใช้ได้กับ Google</p>
+          <form class="qbuild" id="qbForm" autocomplete="off">
+            <label>Username<input id="qbUser" spellcheck="false"></label>
+            <label>Platform<select id="qbPlatform"><option value="">ทุกเว็บ</option><option>instagram</option><option>tiktok</option><option>facebook</option><option value="x">X / Twitter</option><option>github</option><option>youtube</option><option>reddit</option><option>pantip</option><option>linkedin</option><option>threads</option><option>twitch</option><option>medium</option></select></label>
+            <label>Keyword<input id="qbKeywords" placeholder="เช่น bangkok, &quot;ชื่อจริง&quot;"></label>
+            <label>ตั้งแต่<input id="qbAfter" type="date"></label>
+            <label>ถึง<input id="qbBefore" type="date"></label>
+          </form>
+          <div class="qprev" id="qbPreview">—</div>
+          <div class="toolbar">
+            <button type="button" class="btn ghost small" id="qbRun">ค้นใน DuckDuckGo / Bing</button>
+            <a class="btn ghost small" id="qbGoogle" target="_blank" rel="noopener noreferrer">เปิดใน Google ↗</a>
+            <a class="btn ghost small" id="qbBing" target="_blank" rel="noopener noreferrer">เปิดใน Bing ↗</a>
+          </div>
+          <p class="note" id="qbNote"></p>
+          <div id="qbHits"></div>
+        </div>
+      </div>
+
       <div class="tabpanel" data-panel="export" hidden>
         <div class="panel">
           <h2>Export รายงาน</h2>
@@ -396,12 +511,22 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
 </main>
 <footer>ใช้กับข้อมูลสาธารณะเท่านั้น · username เดียวกันไม่จำเป็นต้องเป็นคนเดียวกัน ควรตรวจสอบก่อนนำไปใช้</footer>
 
+<button type="button" class="asst-btn" id="asstBtn" aria-expanded="false">ผู้ช่วย</button>
+<section class="asst" id="asst" hidden aria-label="ผู้ช่วยสืบค้น">
+  <header>ผู้ช่วยสืบค้น <span class="sub" style="font-weight:400;margin:0">ทำงานในเครื่อง ไม่ส่งข้อมูลออก</span><button type="button" id="asstClose" aria-label="ปิด">×</button></header>
+  <div class="msgs" id="asstMsgs"></div>
+  <form id="asstForm" autocomplete="off"><input id="asstIn" placeholder='เช่น "ตรวจ ice4564" หรือ "ทำไม GitHub"'><button class="btn" type="submit">ส่ง</button></form>
+</section>
+
 <script src="/static/common.js"></script>
 <script>
 const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
                 identity: [], showAllId: false, usernames: [], connections: [], domains: [], graph: null, queries: [],
                 clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
+                entities: [], contradictions: [], plan: [], replay: [], runId: null, options: {},
                 tab: "accounts", tabTouched: false, fKind: "all", selected: null, started: "" };
+const RISK = { LOW: "เสี่ยงผิดคนต่ำ", MEDIUM: "เสี่ยงผิดคนกลาง", HIGH: "เสี่ยงผิดคนสูง" };
+const REL = { HIGH: "แหล่งน่าเชื่อถือสูง", MEDIUM: "แหล่งน่าเชื่อถือกลาง", LOW: "แหล่งน่าเชื่อถือต่ำ" };
 const MARK = (ok) => (ok ? "✓" : ok === false ? "✗" : "·");
 const OKC = (ok) => (ok ? "y" : ok === false ? "n" : "u");
 const LABEL = { found: "พบ", not_found: "ไม่พบ", unknown: "ตรวจไม่ได้", manual: "ตรวจเอง" };
@@ -476,16 +601,18 @@ function start() {
   if (!u) return;
   Object.assign(state, { results: new Map(), total: 0, identity: [], showAllId: false, connections: [], domains: [],
     graph: null, queries: [], clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
+    entities: [], contradictions: [], plan: [], replay: [], runId: null,
     tabTouched: false, selected: null, started: new Date().toLocaleString("th-TH") });
   state.usernames = u.replace(/,/g, " ").split(/\s+/).filter(Boolean).map((x) => x.replace(/^@/, ""));
-  for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo"]) $(id).replaceChildren();
-  for (const id of ["disc", "identity", "connections", "domains", "clusters", "changesPanel", "hitsPanel"]) $(id).hidden = true;
+  for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo", "replayList", "planList", "contraList"]) $(id).replaceChildren();
+  for (const id of ["disc", "identity", "connections", "domains", "clusters", "changesPanel", "hitsPanel", "planPanel", "contraBox"]) $(id).hidden = true;
+  $("qbUser").value = state.usernames[0] || ""; updateQuery();
   $("overviewEmpty").hidden = false;
   $("status").classList.add("show"); $("layout").classList.add("show"); $("dash").classList.add("show");
   $("dTarget").textContent = "🔎 " + state.usernames.join(", ");
   $("dWhen").textContent = state.started;
-  for (const id of ["dLinked", "dEvidence", "dHigh", "dMedium", "dLow", "dChanges"]) $(id).textContent = "–";
-  $("nTimeline").textContent = "0"; $("nEvidence").textContent = "0";
+  for (const id of ["dLinked", "dEvidence", "dHigh", "dMedium", "dLow", "dChanges", "dContra"]) $(id).textContent = "–";
+  $("nTimeline").textContent = "0"; $("nEvidence").textContent = "0"; $("nReplay").textContent = "0";
   showTab("accounts", false);
   $("note").textContent = "กำลังเริ่ม...";
   renderDorks(); renderDossier(); updateStats();
@@ -512,6 +639,10 @@ function handle(ev) {
   } else if (ev.type === "search") {
     state.search = ev;
     renderHits();
+  } else if (ev.type === "log") {
+    state.replay.push(ev);
+    $("nReplay").textContent = state.replay.length;
+    if (state.tab === "replay") renderReplay();
   } else if (ev.type === "discovered") {
     $("disc").hidden = false;
     $("discList").append(el("span", { class: "chip", title: ev.source }, ev.username));
@@ -529,8 +660,12 @@ function handle(ev) {
     const s = ev.stats;
     Object.assign(state, { identity: ev.identity || [], connections: ev.connections || [], domains: ev.domains || state.domains,
       graph: ev.graph || null, queries: ev.queries || [], clusters: ev.clusters || [], findings: ev.findings || [],
-      timeline: ev.timeline || [], changes: ev.changes || [], search: ev.search || state.search, summary: ev.summary || null });
+      timeline: ev.timeline || [], changes: ev.changes || [], search: ev.search || state.search, summary: ev.summary || null,
+      entities: ev.entities || [], contradictions: ev.contradictions || [], plan: ev.plan || [],
+      replay: ev.replay || state.replay, runId: ev.run_id || null, options: ev.options || {} });
     renderDomains(); renderHits(); renderClusters(); renderChanges(); renderTimeline(); renderFindings(); renderDashboard();
+    renderContradictions(); renderPlan(); renderReplay();
+    assistantDone(ev);
     stop(`เสร็จใน ${ev.elapsed} วินาที · พบ ${s.found} บัญชี (เชื่อมโยงจากโปรไฟล์ ${s.linked}` +
          (s.candidates_found ? `, จากชื่อใกล้เคียง ${s.candidates_found}` : "") + `) จาก ${s.usernames} username` +
          (s.cached ? ` · ใช้ cache ${s.cached} เว็บ` : "") + (ev.run_id ? ` · บันทึกประวัติครั้งที่ #${ev.run_id}` : ""));
@@ -557,7 +692,8 @@ function renderDashboard() {
   if (!s) return;
   $("dFound").textContent = s.accounts_found; $("dLinked").textContent = s.linked_accounts;
   $("dEvidence").textContent = s.evidence; $("dHigh").textContent = s.high; $("dMedium").textContent = s.medium;
-  $("dLow").textContent = s.low; $("dChanges").textContent = s.changes;
+  $("dLow").textContent = s.low; $("dChanges").textContent = s.changes; $("dContra").textContent = s.contradictions ?? 0;
+  $("nReplay").textContent = state.replay.length;
   $("nTimeline").textContent = state.timeline.length; $("nEvidence").textContent = state.findings.length;
 }
 
@@ -664,12 +800,19 @@ function renderIdentity() {
   $("identity").hidden = false; $("overviewEmpty").hidden = true;
   const strong = list.filter((i) => i.confidence !== "low");
   const shown = state.showAllId ? list : (strong.length ? strong : list.slice(0, 8));
-  const rows = shown.map((i) => el("div", { class: "idrow" },
-    el("span", { class: "score " + i.confidence, title: CONF[i.confidence] }, i.score ?? CONF[i.confidence]),
-    el("div", { class: "t" },
-      el("a", { href: safeUrl(i.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${i.site} · @${i.username}`),
-      i.query === "candidate" ? el("span", { class: "badge cand", style: "margin-left:6px" }, "ชื่อใกล้เคียง") : "",
-      el("div", { class: "ev" }, (i.signals || []).map((s) => `${s.label} +${s.points}`).join(" · ") || i.evidence.join(" · ")))));
+  const rows = shown.map((i) => {
+    const row = el("div", { class: "idrow" });
+    const toggle = el("button", { type: "button", class: "more-btn" }, "ดูที่มาของคะแนน");
+    toggle.onclick = () => row.classList.toggle("open");
+    row.append(el("span", { class: "score " + i.confidence, title: CONF[i.confidence] }, i.score ?? CONF[i.confidence]),
+      el("div", { class: "t" },
+        el("a", { href: safeUrl(i.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${i.site} · @${i.username}`),
+        i.query === "candidate" ? el("span", { class: "badge cand", style: "margin-left:6px" }, "ชื่อใกล้เคียง") : "",
+        i.fp_risk ? el("span", { class: "risk " + i.fp_risk, style: "margin-left:6px", title: (i.fp_why || []).join(" · ") }, RISK[i.fp_risk]) : "",
+        el("div", { class: "ev" }, (i.signals || []).filter((s) => s.points).map((s) => `${s.label} ${s.points > 0 ? "+" : ""}${s.points}`).join(" · ") || i.evidence.join(" · ")),
+        toggle, breakdownEl(i)));
+    return row;
+  });
   const box = $("idList");
   box.replaceChildren(...rows);
   if (shown.length < list.length) {
@@ -679,20 +822,90 @@ function renderIdentity() {
   }
 }
 
+function breakdownEl(i) {
+  const rows = (i.signals || []).map((s) => el("li", {},
+    el("span", { class: "pt " + (s.points > 0 ? "pos" : s.points < 0 ? "neg" : "zero") }, (s.points > 0 ? "+" : s.points < 0 ? "" : "-") + String(s.points).padStart(2, "0")),
+    el("span", {}, s.label)));
+  rows.push(el("li", { class: "total" }, el("span", { class: "pt" }, i.score), el("span", {}, `ความมั่นใจ (${CONF[i.confidence]})` + (i.fp_risk ? ` · ${RISK[i.fp_risk]}` : ""))));
+  return el("ul", { class: "breakdown" }, ...rows);
+}
+
 function renderClusters() {
-  const list = state.clusters;
+  const list = state.entities;
   $("clusters").hidden = !list.length;
   if (list.length) $("overviewEmpty").hidden = true;
-  $("clusterList").replaceChildren(...list.map((c) => el("div", { class: "cluster" },
-    el("div", { class: "head" }, el("span", { class: "pct" }, c.confidence + "%"),
-      el("b", {}, c.usernames.map((u) => "@" + u).join(" · ")),
-      c.names.length ? el("span", { class: "sub", style: "margin:0" }, "ชื่อ: " + c.names.join(", ")) : ""),
-    el("div", { class: "accts" }, ...c.accounts.map((a) => {
-      const b = el("a", { href: "#", title: "ดูในกราฟ" }, `${a.site} @${a.username}` + (a.score != null ? ` · ${a.score}` : ""));
-      b.onclick = (e) => { e.preventDefault(); showTab("graph"); selectNode(a.id); };
+  $("clusterList").replaceChildren(...list.slice(0, 12).map((e) => el("div", { class: "entity" },
+    el("div", { class: "head" }, el("span", { class: "pct" }, e.confidence + "%"), el("b", {}, e.title),
+      el("span", { class: "aliases" }, e.aliases.map((u) => "@" + u).join(" ≈ ")),
+      !e.evidence_based ? el("span", { class: "weak" }, "มีแค่ชื่อคล้ายกัน ยังไม่มีหลักฐานเชื่อม") : "",
+      e.contradictions.length ? el("span", { class: "risk HIGH" }, "⚠ ขัดแย้ง") : ""),
+    el("div", { class: "accts" }, ...e.accounts.slice(0, 24).map((a) => {
+      const b = el("a", { href: "#", title: "ดูในกราฟ" }, `${a.site} @${a.username} · ${a.score}`);
+      b.onclick = (ev) => { ev.preventDefault(); showTab("graph"); selectNode(a.id); };
       return b;
-    })),
-    el("div", { class: "why" }, "เพราะ: " + c.reasons.slice(0, 6).join(" · ")))));
+    }), e.accounts.length > 24 ? el("span", { class: "sub" }, `+${e.accounts.length - 24}`) : ""),
+    el("div", { class: "why" }, "เพราะ: " + e.reasons.slice(0, 6).join(" · ")))));
+}
+
+function renderContradictions() {
+  const list = state.contradictions;
+  $("contraBox").hidden = !list.length;
+  if (list.length) $("overviewEmpty").hidden = true;
+  $("contraList").replaceChildren(...list.map((c) => el("div", { class: "c" },
+    el("b", {}, c.label), ` · ${c.scope_label}`, el("div", {}, c.message),
+    el("div", { class: "vals" }, c.values.map((v) => `${v.source}: ${v.value}`).join(" · ")))));
+}
+
+function renderPlan() {
+  const list = state.plan;
+  $("planPanel").hidden = !list.length;
+  if (list.length) $("overviewEmpty").hidden = true;
+  const PR = { high: "สำคัญ", medium: "ควรทำ", low: "เสริม" };
+  $("planList").replaceChildren(...list.map((st) => {
+    const go = el("button", { type: "button", class: "btn ghost small" }, "ทำเลย");
+    go.onclick = () => runStep(st);
+    return el("div", { class: "step" }, el("span", { class: "prio " + st.priority }, PR[st.priority]),
+      el("div", { class: "t" }, el("b", {}, `${st.n}. ${st.title}`), el("div", {}, st.why)), go);
+  }));
+}
+
+// Execute a planner step (also used by the assistant).
+function runStep(st) {
+  const a = st.action || {};
+  if (a.type === "search") {
+    const o = a.options || {};
+    if ("variants" in o) $("variants").checked = !!o.variants;
+    if ("depth" in o) $("depth").value = String(o.depth);
+    if ("websearch" in o) $("websearch").checked = !!o.websearch;
+    if (state.es) stop();
+    $("u").value = a.usernames.join(" ");
+    start();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (a.type === "scan") {
+    window.open("/scan?target=" + encodeURIComponent(a.target), "_blank", "noopener");
+  } else if (a.type === "query") {
+    showTab("query");
+    runQueries(a.queries);
+  } else if (a.type === "open") {
+    if (safeUrl(a.url)) window.open(a.url, "_blank", "noopener");
+  } else if (a.type === "open_tab") {
+    showTab(a.tab);
+  }
+}
+
+function renderReplay() {
+  const box = $("replayList");
+  const nodeName = (id) => (state.graph?.nodes || []).find((n) => n.id === id)?.label || id;
+  box.replaceChildren(...state.replay.map((x) => {
+    const dt = el("span", { class: "dt" }, x.detail);
+    if (x.ref) {
+      const a = el("a", { title: "ดูในกราฟ" }, " → " + nodeName(x.ref));
+      a.onclick = () => { showTab("graph"); selectNode(x.ref); };
+      dt.append(a);
+    }
+    return el("li", { class: x.action.startsWith("⚠") ? "warn" : "" }, el("span", { class: "tm" }, "+" + x.s + "s"), el("span", { class: "ac" }, x.action), dt);
+  }));
+  if (!state.replay.length) box.append(el("li", {}, el("span", { class: "dt" }, "ยังไม่มีขั้นตอน")));
 }
 
 function renderConnections() {
@@ -740,7 +953,7 @@ function renderDomains() {
 
 function renderHits() {
   const s = state.search;
-  if (!s || !s.engines) return;
+  if (!s || !(s.engines || []).length) { $("hitsPanel").hidden = true; return; }
   $("hitsPanel").hidden = false;
   const relevant = (s.hits || []).filter((h) => h.mentions || h.same_handle);
   const eng = s.engines.map((e) => el("span", { class: "eng" + (e.blocked ? " blocked" : ""), title: (e.errors || []).join("; ") }, e.name + (e.blocked ? " ถูกบล็อก" : "")));
@@ -756,15 +969,19 @@ function findingEl(f, open = false) {
   const d = el("details", { class: "finding", "data-id": f.id });
   if (open) d.open = true;
   d.append(el("summary", {}, el("span", { class: "score " + f.level }, f.confidence), el("span", { class: "kind" }, KIND[f.kind] || f.kind),
-    el("span", { class: "t" }, f.title)));
+    el("span", { class: "t" }, f.title),
+    f.reliability ? el("span", { class: "rel " + f.reliability, title: "ความน่าเชื่อถือของแหล่งที่มา" }, REL[f.reliability]) : "",
+    f.fp_risk ? el("span", { class: "risk " + f.fp_risk, title: (f.fp_why || []).join(" · ") }, RISK[f.fp_risk]) : ""));
   const meta = el("dl", { class: "fmeta" },
     el("dt", {}, "Source"), el("dd", {}, f.source),
     el("dt", {}, "URL"), el("dd", {}, link(f.url, f.url)),
     el("dt", {}, "First seen"), el("dd", {}, day(f.first_seen) || "—"),
     el("dt", {}, "Last checked"), el("dd", {}, (day(f.last_checked) || "—") + (f.cached ? " (cache)" : "")),
-    el("dt", {}, "Confidence"), el("dd", {}, `${f.confidence}/100 (${CONF[f.level] || f.level})`));
+    el("dt", {}, "Confidence"), el("dd", {}, `${f.confidence}/100 (${CONF[f.level] || f.level})`, (f.signals || []).length ? breakdownEl({ ...f, score: f.confidence, confidence: f.level }) : ""),
+    ...(f.found_by && f.found_by.length > 1 ? [el("dt", {}, "Found by"), el("dd", {}, f.found_by.map((x) => `${x.engine} #${x.query_n ?? "?"}`).join(", "))] : []));
   const items = el("ul", { class: "evl" }, ...f.evidence.map((e) => el("li", {},
     el("span", { class: "ty" }, EVTYPE[e.type] || e.type),
+    e.reliability ? el("span", { class: "rel " + e.reliability, title: REL[e.reliability] }, e.reliability[0]) : "",
     el("span", { class: OKC(e.ok) }, MARK(e.ok)), e.url ? link(e.url, e.text) : el("span", {}, e.text))));
   d.append(el("div", { class: "body" }, meta, items));
   return d;
@@ -867,7 +1084,10 @@ function renderGraph() {
     let d;
     if (x2 <= x1) { const sx = x1 + BOX_W, tx = x2 + BOX_W; d = `M${sx},${sy} C${sx + 40},${sy} ${tx + 40},${ty} ${tx},${ty}`; }
     else { const sx = x1 + BOX_W, tx = x2, m = (sx + tx) / 2; d = `M${sx},${sy} C${m},${sy} ${m},${ty} ${tx},${ty}`; }
-    vp.append(svgEl("path", { class: "ge " + e.kind, d, "data-s": e.source, "data-t": e.target }, svgEl("title", {}, e.label)));
+    const line = svgEl("path", { class: "ge " + e.kind, d, "data-s": e.source, "data-t": e.target, "data-e": e.id || "" });
+    const hit = svgEl("path", { class: "ge-hit", d }, svgEl("title", {}, `#${e.n ?? ""} ${e.label} (กดเพื่อดูหลักฐาน)`));
+    hit.addEventListener("click", (ev) => { ev.stopPropagation(); selectEdge(e, line); });
+    vp.append(line, hit);
   }
   const ICON = { username: "@", domain: "🌐 ", email: "✉ ", lead: "? " };
   for (const [id, [x, y]] of L.pos) {
@@ -904,8 +1124,20 @@ function fitGraph() {
   const k = Math.max(0.2, Math.min(1.2, (r.width - 20) / w, (r.height - 20) / h));
   G.view = { k, x: (r.width - w * k) / 2, y: Math.max(10, (r.height - h * k) / 2) }; applyView();
 }
+function selectEdge(e, line) {
+  clearSelection();
+  line.classList.add("sel-edge");
+  const name = (id) => G.nodes.get(id)?.label || id;
+  $("nodeInfo").replaceChildren(el("div", { class: "panel" },
+    el("h2", {}, `เส้น #${e.n ?? ""}: ${name(e.source)} → ${name(e.target)}`),
+    el("p", { class: "sub" }, `${e.label} · ประเภท ${e.kind}`),
+    el("ul", { class: "edge-ev evl" }, ...(e.evidence || [e.label]).map((x, i) => el("li", {}, el("span", { class: "ty" }, `evidence ${e.n ?? ""}.${i + 1}`), el("span", {}, x))))));
+  if (window.innerWidth < 980) $("nodeInfo").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function clearSelection() {
   state.selected = null;
+  G.svg?.querySelectorAll(".sel-edge").forEach((n) => n.classList.remove("sel-edge"));
   G.svg?.classList.remove("focus");
   G.svg?.querySelectorAll(".sel, .near").forEach((n) => n.classList.remove("sel", "near"));
   $("nodeInfo").replaceChildren();
@@ -1014,7 +1246,8 @@ function reportBody() {
   return JSON.stringify({ usernames: state.usernames, results: [...state.results.values()].filter((r) => r.status !== "illegal"),
     identity: state.identity, connections: state.connections, clusters: state.clusters, domains: state.domains, graph: state.graph,
     queries: state.queries, findings: state.findings, timeline: state.timeline, changes: state.changes,
-    search: state.search ? { hits: state.search.hits || [], engines: state.search.engines || [] } : {}, summary: state.summary });
+    search: state.search ? { hits: state.search.hits || [], engines: state.search.engines || [] } : {}, summary: state.summary,
+    entities: state.entities, contradictions: state.contradictions, plan: state.plan, replay: state.replay });
 }
 function download(blob, name) {
   const a = el("a", { href: URL.createObjectURL(blob), download: name });
@@ -1068,7 +1301,184 @@ $("variants").addEventListener("change", previewMutations);
 $("numbersOn").addEventListener("change", previewMutations);
 $("numbers").addEventListener("input", () => { $("numbersOn").checked = true; previewMutations(); });
 document.querySelectorAll("[data-export]").forEach((b) => (b.onclick = () => exportAs(b.dataset.export)));
-init();
+
+// ---------- query builder ----------
+function builtQuery() {
+  const SITES = { instagram: "instagram.com", tiktok: "tiktok.com", facebook: "facebook.com", x: "(site:x.com OR site:twitter.com)",
+    github: "github.com", youtube: "youtube.com", reddit: "reddit.com", pantip: "pantip.com", linkedin: "linkedin.com",
+    threads: "threads.net", twitch: "twitch.tv", medium: "medium.com" };
+  const parts = [];
+  const u = $("qbUser").value.trim().replace(/^@/, "");
+  if (u) parts.push(`"${u}"`);
+  if ($("qbKeywords").value.trim()) parts.push($("qbKeywords").value.trim());
+  const site = SITES[$("qbPlatform").value];
+  if (site) parts.push(site.startsWith("(") ? site : "site:" + site);
+  if ($("qbAfter").value) parts.push("after:" + $("qbAfter").value);
+  if ($("qbBefore").value) parts.push("before:" + $("qbBefore").value);
+  return parts.join(" ");
+}
+function updateQuery() {
+  const q = builtQuery();
+  $("qbPreview").textContent = q || "—";
+  $("qbGoogle").href = q ? "https://www.google.com/search?q=" + encodeURIComponent(q) : "#";
+  $("qbBing").href = q ? "https://www.bing.com/search?q=" + encodeURIComponent(q) : "#";
+}
+async function runQueries(queries) {
+  $("qbNote").textContent = `กำลังค้น ${queries.length} คำค้น (ทีละคำค้น เว้นช่วงเพื่อไม่ให้โดนบล็อก)...`;
+  $("qbHits").replaceChildren();
+  try {
+    const r = await fetch("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ queries }) });
+    const out = await r.json();
+    const blocked = (out.engines || []).filter((e) => e.blocked).map((e) => e.name);
+    $("qbNote").textContent = `${out.hits.length} ผล จาก ${out.queries.length} คำค้น` + (blocked.length ? ` · ถูกบล็อก: ${blocked.join(", ")}` : "")
+      + (out.hits.some((h) => (h.found_by || []).length > 1) ? " · URL ที่ซ้ำถูกรวมเป็นรายการเดียว" : "");
+    $("qbHits").replaceChildren(...out.hits.map((h) => el("div", { class: "hit" }, link(h.url, h.title || h.url),
+      h.platform ? el("span", { class: "eng", style: "margin-left:6px" }, h.platform) : "",
+      el("div", { class: "s" }, h.snippet || h.url),
+      el("div", { class: "s" }, "พบโดย " + (h.found_by || []).map((x) => `${x.engine} #${x.query_n} (อันดับ ${x.rank})`).join(", ")))));
+    return out;
+  } catch (e) { $("qbNote").textContent = "ค้นไม่สำเร็จ: " + e; return null; }
+}
+for (const id of ["qbUser", "qbPlatform", "qbKeywords", "qbAfter", "qbBefore"]) $(id).addEventListener("input", updateQuery);
+$("qbRun").onclick = () => { const q = builtQuery(); if (q) runQueries([{ query: q, username: $("qbUser").value.trim(), label: "custom" }]); };
+
+// ---------- case + watchlist ----------
+$("saveCase").onclick = async () => {
+  if (!state.runId) { $("note").textContent = "บันทึกเข้า Case ได้เมื่อค้นเสร็จและเปิดประวัติไว้"; return; }
+  const cases = await fetch("/api/cases").then((r) => r.json()).catch(() => []);
+  const hint = cases.length ? "\nCase ที่มี: " + cases.map((c) => c.name).join(", ") : "";
+  const name = prompt("ชื่อ Case (พิมพ์ชื่อเดิมเพื่อเพิ่มเข้า Case นั้น)" + hint, state.usernames[0] || "Case");
+  if (!name) return;
+  const existing = cases.find((c) => c.name === name.trim());
+  if (existing) await fetch("/api/cases/" + existing.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add_run: state.runId }) });
+  else await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), targets: state.usernames, run_id: state.runId }) });
+  $("note").textContent = `บันทึกผลครั้งนี้เข้า Case "${name.trim()}" แล้ว ดูได้ที่หน้า Workspace`;
+};
+$("watchBtn").onclick = async () => {
+  const t = state.usernames[0]; if (!t) return;
+  const hours = prompt(`ตรวจ @${t} ซ้ำทุกกี่ชั่วโมง? (ระบบจะแจ้งเฉพาะสิ่งที่เปลี่ยน ระหว่างที่ Sleuth เปิดอยู่)`, "24");
+  if (!hours) return;
+  await fetch("/api/watch", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target: t, interval_hours: Number(hours) || 24, options: { depth: Number($("depth").value), websearch: $("websearch").checked } }) });
+  $("note").textContent = `เพิ่ม @${t} ใน Watchlist แล้ว (ทุก ${Number(hours) || 24} ชั่วโมง)`;
+};
+
+// ---------- reopen a saved run (?run=ID) ----------
+async function loadRun(id) {
+  const r = await fetch("/api/runs/" + id).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (!r || !r.payload) { $("note").textContent = `เปิดผลครั้งที่ #${id} ไม่ได้`; return; }
+  $("u").value = r.usernames.join(" ");
+  Object.assign(state, { results: new Map(), total: 0, usernames: r.usernames, replay: [], started: r.started });
+  $("status").classList.add("show"); $("layout").classList.add("show"); $("dash").classList.add("show");
+  $("dTarget").textContent = "🔎 " + r.usernames.join(", ");
+  $("dWhen").textContent = `ผลที่บันทึกไว้ครั้งที่ #${id} · ${new Date(r.started).toLocaleString("th-TH")}`;
+  for (const res of r.payload.results) state.results.set(key(res), res);
+  state.total = r.payload.results.filter((x) => !x.linked).length;
+  updateStats(); renderDorks(); $("qbUser").value = r.usernames[0] || ""; updateQuery();
+  handle({ ...r.payload.done, type: "done" });
+}
+
+// ---------- alerts badge ----------
+async function pollAlerts() {
+  try {
+    const w = await fetch("/api/watch").then((r) => r.json());
+    $("alertBadge").hidden = !w.unseen; $("alertBadge").textContent = w.unseen || "";
+  } catch (e) { /* history disabled */ }
+}
+
+// ---------- assistant (rule-based, runs in this page; nothing leaves the machine) ----------
+const asst = { pending: null, waiting: false };
+function say(text, actions = []) {
+  const m = el("div", { class: "m bot" }, text);
+  if (actions.length) m.append(el("div", { class: "acts" }, ...actions.map(([label, fn]) => {
+    const b = el("button", { type: "button", class: "btn ghost small" }, label); b.onclick = fn; return b;
+  })));
+  $("asstMsgs").append(m); $("asstMsgs").scrollTop = 1e9;
+}
+function me(text) { $("asstMsgs").append(el("div", { class: "m me" }, text)); $("asstMsgs").scrollTop = 1e9; }
+function topConnections(n = 3) {
+  return [...state.identity].sort((a, b) => b.score - a.score).slice(0, n);
+}
+function summaryText() {
+  const s = state.summary;
+  if (!s) return "ยังไม่มีผล ลองพิมพ์ \"ตรวจ ชื่อ\" ก่อน";
+  const top = topConnections().map((i, n) => `${n + 1}. ${i.site} @${i.username} → ${i.score}% (${RISK[i.fp_risk] || ""})`).join("\n");
+  return `${s.targets.join(", ")}: พบ ${s.accounts_found} บัญชี, หลักฐาน ${s.evidence} ชิ้น\n` +
+    `ความมั่นใจ สูง ${s.high} / กลาง ${s.medium} / ต่ำ ${s.low}` + (s.contradictions ? `\n⚠ หลักฐานขัดแย้ง ${s.contradictions} เรื่อง` : "") +
+    (top ? `\n\nบัญชีที่น่าจะเกี่ยวข้องที่สุด:\n${top}` : "");
+}
+function offerPlan() {
+  const st = state.plan[0];
+  if (!st) return say("ตอนนี้ไม่มีขั้นต่อไปที่แนะนำ");
+  asst.pending = st;
+  say(`อยากให้ทำขั้นต่อไปไหม?\n${st.title}\n(${st.why})`, [["ทำเลย", () => { me("ทำเลย"); doPending(); }],
+    ["ดูแผนทั้งหมด", () => { me("แผน"); planText(); }]]);
+}
+function planText() {
+  if (!state.plan.length) return say("ยังไม่มีแผน ค้นอะไรสักอย่างก่อน");
+  say(state.plan.map((st) => `${st.n}. ${st.title}\n   ${st.why}`).join("\n"), state.plan.slice(0, 4).map((st) => [`ทำข้อ ${st.n}`, () => { me(`ทำข้อ ${st.n}`); runStep(st); say(`กำลังทำ: ${st.title}`); }]));
+}
+function doPending() {
+  const st = asst.pending; asst.pending = null;
+  if (!st) return say("ไม่มีอะไรค้างให้ทำ");
+  if (st.action.type === "search") asst.waiting = true;
+  runStep(st); say(`กำลังทำ: ${st.title}`);
+}
+function explain(q) {
+  const i = state.identity.find((x) => x.site.toLowerCase().includes(q) || x.username.toLowerCase() === q);
+  if (!i) return say(`ไม่พบบัญชีที่ตรงกับ "${q}" ในผลล่าสุด`);
+  const pt = (p) => (p > 0 ? "+" + String(p).padStart(2, "0") : p < 0 ? "-" + String(-p).padStart(2, "0") : "-00");
+  const lines = (i.signals || []).map((s) => `${pt(s.points)}  ${s.label}`).join("\n");
+  say(`${i.site} @${i.username}\nConfidence: ${i.score}%\n\n${lines}\n\nFalse-positive risk: ${i.fp_risk}` + ((i.fp_why || []).length ? `\n(${i.fp_why.join(", ")})` : ""));
+}
+function assistantDone(ev) {
+  if (!asst.waiting) return;
+  asst.waiting = false;
+  say(summaryText()); offerPlan();
+}
+function ask(text) {
+  const t = text.trim(); if (!t) return;
+  me(t);
+  const low = t.toLowerCase();
+  let m;
+  if ((m = low.match(/^(?:ตรวจ|ค้น|ค้นหา|หา|check|search|investigate|find)\s+@?(.+)$/))) {
+    const names = m[1].replace(/ให้หน่อย|หน่อย|ที/g, " ").split(/[\s,]+/).filter(Boolean);
+    const range = (m[1].match(/(\d+)\s*-\s*(\d+)/) || [])[0];
+    const users = names.filter((x) => !/^\d+\s*-?\s*\d*$/.test(x));
+    if (!users.length) return say("บอกชื่อที่จะตรวจด้วย เช่น \"ตรวจ ice4564\"");
+    if (range) { $("numbersOn").checked = true; $("numbers").value = range; }
+    if (/ใกล้เคียง|variant|mutation/.test(low)) $("variants").checked = true;
+    if (state.es) stop();
+    $("u").value = users.filter((x) => !/ใกล้เคียง|variant/.test(x)).join(" ");
+    asst.waiting = true; start();
+    return say(`เริ่มตรวจ ${$("u").value} แล้ว` + (range ? ` (เติมเลข ${range})` : "") + " เสร็จแล้วจะสรุปให้");
+  }
+  if (/^(ใช่|ทำเลย|เอา|ok|yes|y|go)\b/.test(low)) return doPending();
+  if ((m = low.match(/ทำข้อ\s*(\d+)/))) { const st = state.plan.find((x) => x.n === +m[1]); return st ? (runStep(st), say(`กำลังทำ: ${st.title}`)) : say("ไม่มีข้อนั้น"); }
+  if (/สรุป|summary|ผล|result/.test(low)) { say(summaryText()); return state.plan.length && offerPlan(); }
+  if ((m = low.match(/(?:ทำไม|why|อธิบาย|explain)\s+@?(\S+)/))) return explain(m[1].replace(/^@/, ""));
+  if (/ขัดแย้ง|contradict/.test(low)) return say(state.contradictions.length ? state.contradictions.map((c) => `⚠ ${c.label} (${c.scope_label})\n${c.message}`).join("\n\n") : "ไม่พบหลักฐานที่ขัดแย้งกัน");
+  if (/ต่อไป|แผน|แนะนำ|next|plan/.test(low)) return planText();
+  if (/ตัวตน|entity|identity|คนเดียวกัน/.test(low)) return say(state.entities.length ? state.entities.slice(0, 3).map((e) => `${e.title} (${e.confidence}%): ${e.aliases.join(" ≈ ")}\n${e.accounts.slice(0, 6).map((a) => `${a.site} ${a.score}`).join(", ")}\nเพราะ: ${e.reasons.slice(0, 3).join("; ")}`).join("\n\n") : "ยังไม่มีข้อมูลตัวตน");
+  if ((m = low.match(/(?:watch|เฝ้า|ติดตาม)\s*@?(\S*)/))) { if (m[1]) $("u").value = m[1]; state.usernames = state.usernames.length ? state.usernames : [m[1]]; return $("watchBtn").click(); }
+  if ((m = low.match(/(?:export|รายงาน|report)\s*(pdf|html|md|markdown|json|csv)?/))) { const f = (m[1] || "html").replace("markdown", "md"); exportAs(f); return say(`กำลังสร้างรายงาน ${f.toUpperCase()}`); }
+  if (/กราฟ|graph/.test(low)) { showTab("graph"); return say("เปิดกราฟให้แล้ว กดเส้นเพื่อดูหลักฐาน"); }
+  if (/replay|ย้อน|ทำอะไรไปบ้าง/.test(low)) { showTab("replay"); return say(`ระบบทำไป ${state.replay.length} ขั้น เปิดแท็บ Replay ให้แล้ว`); }
+  say("ลองพิมพ์:\n• ตรวจ ice4564  (หรือ \"ตรวจ ice 1-10\")\n• สรุป\n• ทำไม github\n• ขัดแย้ง\n• แผนต่อไป / ทำข้อ 1\n• ตัวตน\n• เฝ้าดู ice4564\n• รายงาน pdf");
+}
+$("asstBtn").onclick = () => {
+  const open = $("asst").hidden; $("asst").hidden = !open; $("asstBtn").setAttribute("aria-expanded", open);
+  if (open && !$("asstMsgs").children.length) say("สวัสดีครับ พิมพ์ \"ตรวจ ชื่อ\" ให้ผมค้น หรือถามเรื่องผลที่มีอยู่ เช่น \"สรุป\", \"ทำไม github\", \"แผนต่อไป\"");
+  if (open) $("asstIn").focus();
+};
+$("asstClose").onclick = () => { $("asst").hidden = true; $("asstBtn").setAttribute("aria-expanded", "false"); };
+$("asstForm").onsubmit = (e) => { e.preventDefault(); ask($("asstIn").value); $("asstIn").value = ""; };
+
+init().then(() => {
+  const run = new URLSearchParams(location.search).get("run");
+  if (run) loadRun(+run);
+});
+pollAlerts(); setInterval(pollAlerts, 60000);
 </script>
 </body>
 </html>

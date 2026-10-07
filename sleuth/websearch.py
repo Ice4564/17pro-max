@@ -88,6 +88,8 @@ class Hit:
     handle: str | None = None
     same_handle: bool = False  # profile handle == searched username
     checked_at: str = ""
+    # every (engine, query, rank) that returned this URL: one record per URL, however often it shows up
+    found_by: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -184,34 +186,77 @@ def classify(hit: Hit, sites: list[Any] | None = None) -> Hit:
     return hit
 
 
+def url_key(url: str) -> str:
+    """Same page, different spelling: drop scheme, www., trailing slash and tracking parameters."""
+    p = urlparse(url.strip())
+    host = p.netloc.lower().removeprefix("www.").removeprefix("m.")
+    query = "&".join(sorted(x for x in p.query.split("&") if x and not x.lower().startswith(("utm_", "fbclid", "ref="))))
+    return f"{host}{p.path.rstrip('/').lower()}" + (f"?{query}" if query else "")
+
+
+def build_query(username: str = "", platform: str = "", keywords: str = "", after: str = "",
+                before: str = "", exact: bool = True) -> str:
+    """Custom query builder: [username] + [platform] + [keyword] + [date range]."""
+    parts = []
+    if username.strip():
+        u = username.strip().lstrip("@")
+        parts.append(f'"{u}"' if exact else u)
+    if keywords.strip():
+        parts.append(keywords.strip())
+    site = PLATFORM_SITES.get(platform.strip().lower(), platform.strip())
+    if site:
+        parts.append(site if site.startswith(("site:", "(")) else f"site:{site}")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", after or ""):
+        parts.append(f"after:{after}")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", before or ""):
+        parts.append(f"before:{before}")
+    return " ".join(parts)
+
+
+PLATFORM_SITES = {
+    "instagram": "instagram.com", "tiktok": "tiktok.com", "facebook": "facebook.com",
+    "x": "(site:x.com OR site:twitter.com)", "twitter": "(site:x.com OR site:twitter.com)",
+    "github": "github.com", "youtube": "youtube.com", "reddit": "reddit.com", "pantip": "pantip.com",
+    "linkedin": "linkedin.com", "threads": "threads.net", "twitch": "twitch.tv", "medium": "medium.com",
+}
+
+
 async def search(session: aiohttp.ClientSession, usernames: list[str], *, max_queries: int = 6,
                  max_results: int = 8, delay: float = 1.5, timeout: float = 15.0,
                  engines: list[Engine] | None = None, sites: list[Any] | None = None,
-                 proxy: str | None = None, now: Any = None) -> dict[str, Any]:
-    """Run the dork queries and return ``{"hits": [...], "engines": [...], "queries": [...]}``."""
+                 proxy: str | None = None, now: Any = None,
+                 custom: list[dict[str, str]] | None = None) -> dict[str, Any]:
+    """Run the dork queries and return ``{"hits": [...], "engines": [...], "queries": [...]}``.
+
+    ``custom`` replaces the generated dorks with ``[{"query", "username", "label"}]``
+    (the query builder). A URL returned by several queries or engines is kept
+    once, with every source listed in ``found_by``.
+    """
     engines = engines if engines is not None else default_engines()
-    hits: list[Hit] = []
+    hits: dict[str, Hit] = {}
     ran: list[dict[str, Any]] = []
-    seen: set[str] = set()
     stamp = now() if now else ""
-    for username in usernames:
-        for q in queries(username, max_queries):
-            engine = next((e for e in engines if not e.blocked), None)
-            if engine is None:
-                ran.append({**q, "username": username, "engine": None, "status": "skipped", "count": 0})
+    plan = custom if custom is not None else [{**q, "username": u} for u in usernames for q in queries(u, max_queries)]
+    for n, q in enumerate(plan, 1):
+        username = q.get("username", "")
+        engine = next((e for e in engines if not e.blocked), None)
+        if engine is None:
+            ran.append({**q, "n": n, "engine": None, "status": "skipped", "count": 0})
+            continue
+        status, results = await _ask(session, engine, q["query"], timeout, proxy)
+        ran.append({**q, "n": n, "engine": engine.name, "status": status, "count": len(results)})
+        for rank, (url, title, snippet) in enumerate(results[:max_results], 1):
+            source = {"engine": engine.name, "query": q["query"], "query_n": n, "rank": rank}
+            key = url_key(url)
+            if key in hits:
+                hits[key].found_by.append(source)
                 continue
-            status, results = await _ask(session, engine, q["query"], timeout, proxy)
-            ran.append({**q, "username": username, "engine": engine.name, "status": status, "count": len(results)})
-            for rank, (url, title, snippet) in enumerate(results[:max_results], 1):
-                key = url.rstrip("/").lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                hits.append(classify(Hit(engine.name, q["query"], username, url, title[:200], snippet[:400], rank,
-                                         checked_at=stamp), sites))
-            if delay:
-                await asyncio.sleep(delay)
-    return {"hits": [h.to_dict() for h in hits],
+            hits[key] = classify(Hit(engine.name, q["query"], username, url, title[:200], snippet[:400], rank,
+                                     checked_at=stamp, found_by=[source]), sites)
+        if delay and n < len(plan):
+            await asyncio.sleep(delay)
+    hits_list = list(hits.values())
+    return {"hits": [h.to_dict() for h in hits_list],
             "engines": [{"name": e.name, "blocked": e.blocked, "errors": e.errors[:3]} for e in engines],
             "queries": ran}
 

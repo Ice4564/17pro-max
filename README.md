@@ -24,6 +24,9 @@
 | Cache + จำกัดความถี่ต่อเว็บ (ไม่ยิงเว็บเดิมซ้ำ, เคารพ 429 / Retry-After) | ❌ | บางส่วน | บางส่วน | ✅ |
 | Plugin: เพิ่มแหล่งข้อมูลใหม่โดยไม่ต้องแก้ core | ❌ | ❌ | ✅ | ✅ |
 | รายงาน TXT / CSV / JSON / Markdown / HTML / PDF + timeline | บางส่วน | ✅ | ✅ | ✅ |
+| วางแผนค้นต่อจากหลักฐาน + ผู้ช่วยในหน้าเว็บ (ไม่ส่งข้อมูลออกนอกเครื่อง) | ❌ | ❌ | ❌ | ✅ |
+| ตรวจหลักฐานขัดแย้ง + ความเสี่ยงผิดคน (false-positive risk) | ❌ | ❌ | ❌ | ✅ |
+| Case, Watchlist แจ้งเตือนเมื่อเปลี่ยน, ฐานข้อมูลข่าวกรองในเครื่อง, Investigation replay | ❌ | ❌ | บางส่วน | ✅ |
 | **Web UI ภาษาไทย แสดงผลแบบ real-time** | ❌ | บางส่วน | ✅ | ✅ |
 
 > บน Windows ถ้าพิมพ์ `python` แล้วไม่เจอคำสั่ง ให้ใช้ `py` แทน หรือดับเบิลคลิก `web.bat`
@@ -64,7 +67,11 @@ python -m sleuth --web
 - **Identity Graph:** กราฟ username → บัญชี → เว็บไซต์ → อีเมล ลาก/ซูมได้ กดกล่องไหนก็เปิดหลักฐานของสิ่งนั้น
 - **Timeline:** วันสร้างบัญชี, archive.org, ครั้งแรกที่ Sleuth เห็น, การเปลี่ยนแปลง
 - **หลักฐาน:** ทุก finding พร้อม Source / URL / Evidence / First seen / Last checked / Confidence กรองตามประเภทและระดับได้
+- **Replay:** ทุกขั้นที่ระบบทำ เรียงตามเวลา (ค้นอะไร เจออะไร ตามลิงก์ไหน เทียบอะไร)
+- **สร้างคำค้น:** [username] + [platform] + [keyword] + [ช่วงวันที่] → ค้นใน DuckDuckGo/Bing หรือเปิดใน Google
 - **Export:** HTML, PDF, Markdown, JSON, CSV, TXT
+- **ผู้ช่วย** (ปุ่มมุมขวาล่าง): พิมพ์ "ตรวจ ice4564", "สรุป", "ทำไม github", "ขัดแย้ง", "แผนต่อไป", "ทำข้อ 1", "เฝ้าดู ice4564", "รายงาน pdf" ทำงานในหน้าเว็บเอง ไม่ใช้ AI ภายนอก
+- **Workspace** (http://localhost:8787/workspace): Case, Watchlist + แจ้งเตือน, ค้นในฐานข้อมูลข่าวกรอง, เปิดผลการค้นเก่าได้ทันที
 
 ### เมนูตัวเลข
 
@@ -114,6 +121,11 @@ python -m sleuth torvalds -f all
 | `--no-history` | ไม่บันทึกการค้นครั้งนี้ (จะไม่มีการเทียบการเปลี่ยนแปลง) |
 | `--changes [username]` | ดูการเปลี่ยนแปลงของโปรไฟล์ที่บันทึกไว้ |
 | `--runs` / `--clear-cache` | ดูประวัติการค้น / ล้าง cache |
+| `--replay 12` | ดูว่าการค้นครั้งที่ 12 ทำอะไรไปบ้างทีละขั้น |
+| `--intel ice` | ค้นทุกอย่างที่ฐานข้อมูลในเครื่องรู้ (บัญชี, username, โดเมน, อีเมล, URL, ความสัมพันธ์) |
+| `--case "Case #001"` | เก็บการค้นครั้งนี้เข้า Case (สร้างให้ถ้ายังไม่มี) · `--cases` ดูรายการ |
+| `--watch-add ice4564 --watch-interval 24` | เฝ้าดู username · `--watch-list`, `--watch-remove`, `--alerts` |
+| `--watch-run` | ตรวจรายการที่ถึงเวลาหนึ่งรอบ (ตั้งใน Task Scheduler ได้ถ้าอยากให้ตรวจแม้ไม่ได้เปิดเว็บ) |
 | `--no-domains` / `--max-domains 5` | ปิด / จำกัดการตามเว็บไซต์ส่วนตัวที่เจอในโปรไฟล์ |
 | `-a` | แสดงผล "ไม่พบ" และ "ตรวจไม่ได้" ด้วย |
 | `-f html,md,pdf` หรือ `-f all` | บันทึกรายงาน `txt`, `csv`, `json`, `md`, `html`, `pdf` (ลงโฟลเดอร์ `reports/`, PDF ต้องมี Chrome หรือ Edge ในเครื่อง) |
@@ -183,6 +195,59 @@ Finding
 ```
 
 finding มี 5 ประเภท: บัญชี, อีเมล, เว็บไซต์, เบาะแส (IG/FB/TikTok ที่ archive.org หรือ search engine เห็น หรือโปรไฟล์จากผลค้นหา) และหน้าที่กล่าวถึง username รายงาน JSON มี `meta.findings`, `meta.clusters`, `meta.timeline`, `meta.changes`, `meta.search`, `meta.summary` และ `meta.graph`
+
+## สืบสวนแบบเป็นระบบ
+
+### แผนค้นต่อ (Smart Search Planner)
+
+หลังค้นเสร็จ ระบบเลือกขั้นต่อไปจากหลักฐานที่มี แทนที่จะยิงทุกอย่าง ([planner.py](sleuth/planner.py))
+
+```
+Target: ice4564
+พบ: GitHub ice4564, Reddit ice4564x, เว็บไซต์ example.com
+Next searches:
+ 1. ค้น @ice4564x ต่อ              (เจอในโปรไฟล์แต่เกินจำนวนชั้น)
+ 2. ตรวจโดเมน example.com           (เว็บไซต์ส่วนตัว → สแกน DNS/WHOIS/อีเมล)
+ 3. ค้น "ice4564" "example.com"      (username + domain)
+ 4. ค้น username ใกล้เคียงของ @ice4564
+```
+
+ในหน้าเว็บกด "ทำเลย" ได้ทุกข้อ
+
+### Entity resolution
+
+`ice4564`, `Ice4564`, `ice_4564`, `ice4564x`, `real.ice4564` ถูกมองเป็น username ตระกูลเดียวกัน แล้วรวมกับบัญชีที่มีหลักฐานเชื่อมกัน (ลิงก์ถึงกัน, อีเมล, ชื่อ/รูป/bio ตรงกัน) เป็น **Possible identity #N** พร้อมเหตุผล กลุ่มที่มีแค่ชื่อคล้ายกันได้คะแนนไม่เกิน 40 เพราะคนแปลกหน้าก็ใช้ชื่อเดียวกันได้
+
+### ตรวจหลักฐานขัดแย้ง (Contradiction detector)
+
+ถ้าบัญชีในกลุ่มเดียวกันบอกคนละประเทศ (เช่น GitHub = Thailand, อีกบัญชี = Japan, เว็บไซต์ตั้ง timezone = US) หรือใช้ชื่อจริงต่างกัน ระบบขึ้น **⚠ Contradictory evidence detected** และหักคะแนนของกลุ่มและบัญชีที่เกี่ยวข้อง ([contradictions.py](sleuth/contradictions.py))
+
+### คะแนนที่อธิบายได้ + ความเสี่ยงผิดคน
+
+```
+GitHub @ice4564   Confidence: 87%
++45 เจ้าของลิงก์ไว้เอง
++25 username ตรงกับที่ค้น
++10 ชื่อจริงตรงกับบัญชีอื่น
++07 คล้ายกับ Reddit @ice4564x 72%
+-00 ไม่พบหลักฐานขัดแย้ง
+False-positive risk: LOW
+```
+
+ตัวเลขทุกบรรทัดรวมกันได้เท่าคะแนนพอดี ความเสี่ยงผิดคนดูจากจำนวนหลักฐานอิสระ, ข้อขัดแย้ง และ username สั้นหรือเป็นคำทั่วไปหรือไม่ แหล่งที่มาของหลักฐานแต่ละชิ้นมีระดับความน่าเชื่อถือ: โปรไฟล์ทางการ / เว็บส่วนตัว = สูง, archive.org / search engine = กลาง, หน้าเว็บที่ยืนยันไม่ได้ = ต่ำ
+
+### Evidence graph
+
+ทุกเส้นในกราฟมีหมายเลขและหลักฐานรองรับ กดเส้นในหน้าเว็บเพื่อดูว่าทำไมสองสิ่งนี้ถึงเชื่อมกัน (ในรายงาน HTML กดเส้นแล้วไปที่ตารางหลักฐานของเส้นนั้น)
+
+### ฐานข้อมูลข่าวกรองในเครื่อง
+
+`~/.sleuth/history.db` (SQLite) เก็บ runs (ผลเต็ม + replay), snapshots, accounts, usernames, domains, emails, urls, relationships, cases, watchlist และ alerts URL ที่เจอจากหลายคำค้นหรือหลาย engine เก็บเป็นแถวเดียวพร้อมรายการ "Found by" ประวัติ username ของเป้าหมาย (เช่น ปี 2025 ใช้ `ice4564`, ปี 2026 ใช้ `ice4564x`) ขึ้นใน timeline
+
+### Case + Watchlist
+
+- **Case:** รวมเป้าหมาย ผลการค้น การเปลี่ยนแปลง timeline และโน้ตไว้ในแฟ้มเดียว (กด "บันทึกเข้า Case" หลังค้น หรือสร้างในหน้า Workspace)
+- **Watchlist:** เพิ่ม username แล้วระบบตรวจซ้ำตามรอบที่ตั้ง (ระหว่างที่ Sleuth web เปิดอยู่) แจ้งเฉพาะสิ่งที่เปลี่ยน: บัญชีใหม่, bio/ชื่อ/รูป/ผู้ติดตามเปลี่ยน, username เปลี่ยน (โปรไฟล์ลิงก์ไปแพลตฟอร์มเดิมแต่ชื่อใหม่), ลิงก์ภายนอกใหม่ จำนวนแจ้งเตือนที่ยังไม่อ่านขึ้นที่เมนู Workspace
 
 ## ค้นใน search engine
 
@@ -364,13 +429,16 @@ sleuth/
 ├── similarity.py     เทียบบัญชีทีละคู่ → possible connection + เหตุผล ✓/✗ (รวมอีเมล/โดเมน)
 ├── identity.py       รวมบัญชีที่มีหลักฐานเชื่อมกันเป็น "ตัวตน"
 ├── evidence.py       evidence graph, findings, timeline, ตัวเลข dashboard
-├── history.py        ประวัติการค้น, snapshot, การเปลี่ยนแปลงของโปรไฟล์, cache (SQLite)
+├── history.py        ฐานข้อมูลข่าวกรอง: runs, snapshots, การเปลี่ยนแปลง, cache, case, watchlist (SQLite)
+├── planner.py        วางแผนค้นต่อจากหลักฐาน
+├── contradictions.py ตรวจหลักฐานที่ขัดแย้งกัน
+├── watch.py          ตรวจ watchlist ตามรอบ
 ├── avatars.py        เทียบรูปโปรไฟล์ด้วย dHash
 ├── extractor.py      ดึงข้อมูลโปรไฟล์จาก HTML / JSON-LD / JSON API
 ├── report.py         รายงาน TXT / CSV / JSON / Markdown / HTML / PDF
 ├── selfcheck.py      ทดสอบกฎกับเว็บจริง
 ├── web.py            Web UI server (SSE streaming)
-├── static/           หน้าเว็บ (index.html = ค้น username, scan.html = สแกนเป้าหมาย)
+├── static/           หน้าเว็บ (index.html = ค้น username, scan.html = สแกนเป้าหมาย, workspace.html = Case/Watchlist/ฐานข้อมูล)
 ├── cli.py            คำสั่ง command line
 └── scan/             ระบบสแกนแบบ SpiderFoot
     ├── core.py       event, scanner, scope และงบจำกัด

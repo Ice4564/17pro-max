@@ -183,6 +183,70 @@ def combine(ps: list[float]) -> int:
     return round(min(0.99, 1 - miss) * 100)
 
 
+def explain(signals: list[dict]) -> tuple[int, list[dict]]:
+    """Score plus each signal's share of it, so the points add up to the score.
+
+    Signals combine as 1 - prod(1 - p); taken strongest first, a signal's
+    points are how much it raised the score at that step::
+
+        Confidence 87
+          +45 Owner linked it
+          +25 Same full name
+          +17 Username match
+    """
+    ordered = sorted(signals, key=lambda x: -x["p"])
+    miss, prev, rows = 1.0, 0, []
+    for sig in ordered:
+        miss *= 1 - max(0.0, min(sig["p"], 0.99))
+        now = round(min(0.99, 1 - miss) * 100)
+        rows.append({"label": sig["label"], "points": now - prev, "kind": sig.get("kind", "support")})
+        prev = now
+    return prev, rows
+
+
+CONTRADICTION_POINTS = 20  # per contradiction the account is involved in (max 2)
+
+# Very short or plain-word handles are taken by many unrelated people.
+COMMON_HANDLE = re.compile(r"^(?:[a-z]{1,5}|[a-z]{1,4}\d{1,2}|\d+)$")
+
+
+def fp_risk(score: int, signals: list[dict], username: str, contradictions: int = 0) -> tuple[str, list[str]]:
+    """False-positive risk (LOW / MEDIUM / HIGH) and why."""
+    why = []
+    support = [x for x in signals[1:] if x["points"] > 0 and x.get("kind") != "contradiction"]
+    core = re.sub(r"[._-]", "", username.lower())
+    if contradictions:
+        why.append(f"มีหลักฐานขัดแย้ง {contradictions} เรื่อง")
+    if not support:
+        why.append("มีแค่ username ตรงกัน ไม่มีหลักฐานอื่น")
+    if COMMON_HANDLE.match(core):
+        why.append("username สั้นหรือเป็นคำทั่วไป มีคนใช้ซ้ำได้ง่าย")
+    if contradictions or (not support and (COMMON_HANDLE.match(core) or score < 30)):
+        return "HIGH", why
+    if score >= HIGH and len(support) >= 1 and not contradictions:
+        return "LOW", why or [f"มีหลักฐานรองรับ {len(support)} อย่าง"]
+    return "MEDIUM", why or ["หลักฐานยังไม่มากพอที่จะยืนยัน"]
+
+
+def apply_contradictions(identity: list[dict], involved: dict[tuple[str, str], list[str]]) -> list[dict]:
+    """Subtract contradiction points, refresh labels and false-positive risk (in place)."""
+    for i in identity:
+        labels = involved.get((i["site"].lower(), i["username"].lower()), [])
+        rows = [r for r in i["signals"] if r.get("kind") != "contradiction"]
+        score = sum(r["points"] for r in rows)
+        for label in labels[:2]:
+            take = min(CONTRADICTION_POINTS, score)
+            rows.append({"label": f"ขัดแย้ง: {label}", "points": -take, "kind": "contradiction"})
+            score -= take
+        if not labels:
+            rows.append({"label": "ไม่พบหลักฐานขัดแย้ง", "points": 0, "kind": "contradiction"})
+        i["signals"], i["score"], i["confidence"] = rows, score, level(score)
+        i["contradictions"] = labels
+        i["fp_risk"], i["fp_why"] = fp_risk(score, rows, i["username"], len(labels))
+    identity.sort(key=lambda x: (CONFIDENCE_ORDER[x["confidence"]], -x["score"], x["depth"], x["site"].lower()))
+    return identity
+
+
 def identity_summary(results: list[dict], searched: list[str],
                      avatar_matches: dict[tuple[str, str], list[str]] | None = None,
                      connections: list[dict] | None = None,
@@ -259,9 +323,12 @@ def identity_summary(results: list[dict], searched: list[str],
                             "p": link["confidence"] / 100 * weight})
         if k in indexed:
             signals.append({"label": f"{indexed[k]} มีหน้าโปรไฟล์นี้ในผลค้นหา", "p": P_INDEXED})
-        score = combine([s["p"] for s in signals])
+        score, rows = explain(signals)
+        # the username line first: it is always there and anchors the explanation
+        rows.sort(key=lambda x: x["label"] != signals[0]["label"])
+        risk, risk_why = fp_risk(score, rows, r["username"])
         out.append({"site": r["site"], "username": r["username"], "url": r["url"], "confidence": level(score),
-                    "score": score, "signals": [{"label": s["label"], "points": round(s["p"] * 100)} for s in signals],
+                    "score": score, "signals": rows, "fp_risk": risk, "fp_why": risk_why, "contradictions": [],
                     "evidence": evidence, "linked": bool(r.get("linked")), "depth": r.get("depth", 0),
                     "query": query, "candidate_of": r.get("candidate_of")})
     out.sort(key=lambda x: (CONFIDENCE_ORDER[x["confidence"]], -x["score"], x["depth"], x["site"].lower()))

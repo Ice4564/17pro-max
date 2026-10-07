@@ -15,6 +15,7 @@ is a lead for a person to check, not proof.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .evidence import account_id, domain_id
@@ -103,4 +104,98 @@ def clusters(results: list[dict[str, Any]], connections: list[dict[str, Any]] | 
     out.sort(key=lambda c: (-len(c["accounts"]) * c["confidence"], -c["confidence"]))
     for n, c in enumerate(out, 1):
         c["id"] = f"identity-{n}"
+    return out
+
+
+# ---- entity resolution ------------------------------------------------------------
+_PREFIX = re.compile(r"^(?:real|the|its|im|iam|official)[._-]?(?=[a-z0-9]{3,})")
+_SUFFIX = re.compile(r"(?:[._-](?:official|th|x+|\d{1,2})|(?<=\d)(?:official|th|x+)|official|_+)$")
+
+
+def handle_core(username: str) -> str:
+    """The handle without decoration: ice4564, Ice4564, ice_4564, ice4564x, real.ice4564 -> ice4564.
+
+    Suffixes like x / th are only removed after a digit or a separator, so
+    "alex" stays "alex".
+    """
+    u = username.strip().lstrip("@").lower()
+    for _ in range(2):
+        u2 = _SUFFIX.sub("", u)
+        u2 = _PREFIX.sub("", u2)
+        if len(re.sub(r"[._-]", "", u2)) < 3 or u2 == u:
+            break
+        u = u2
+    return re.sub(r"[._-]", "", u)
+
+
+def entities(results: list[dict[str, Any]], clusters_: list[dict[str, Any]], identity: list[dict[str, Any]],
+             typed: list[str] | None = None) -> list[dict[str, Any]]:
+    """Possible identities: handle families, merged when evidence links them.
+
+    1. usernames that are spellings of one handle form a family
+       (ice4564 / Ice4564 / ice_4564 / ice4564x);
+    2. families whose accounts sit in the same evidence cluster are one entity
+       (GitHub ice4564 links to Instagram ice.photos -> both families merge).
+
+    An entity built only from spelling has at most 40 confidence: a shared
+    handle is how two strangers look too.
+    """
+    found = [r for r in results if r["status"] == "found"]
+    scores = {(i["site"].lower(), i["username"].lower()): i for i in identity}
+    fam_of: dict[str, str] = {}
+    for r in found:
+        fam_of[r["username"].lower()] = handle_core(r["username"])
+    for u in typed or []:
+        fam_of.setdefault(u.lower(), handle_core(u))
+    parent = {f: f for f in set(fam_of.values())}
+
+    def root(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for c in clusters_:
+        fams = {fam_of.get(a["username"].lower()) for a in c["accounts"]} - {None}
+        fams_l = sorted(fams)
+        for f in fams_l[1:]:
+            parent[root(f)] = root(fams_l[0])
+    groups: dict[str, dict[str, Any]] = {}
+    for r in found:
+        g = groups.setdefault(root(fam_of[r["username"].lower()]), {"accounts": [], "usernames": set(), "families": set()})
+        g["accounts"].append(r)
+        g["usernames"].add(r["username"])
+        g["families"].add(fam_of[r["username"].lower()])
+    typed_l = {u.lower() for u in typed or []}
+    out = []
+    for key, g in groups.items():
+        ids = {account_id(r["site"], r["username"]) for r in g["accounts"]}
+        linked = [c for c in clusters_ if ids & {a["id"] for a in c["accounts"]}]
+        spellings = sorted(g["usernames"], key=str.lower)
+        reasons = []
+        if len({u.lower() for u in spellings}) > 1:
+            reasons.append("username ตระกูลเดียวกัน: " + " ≈ ".join(spellings[:6]))
+        elif spellings:
+            reasons.append(f"ใช้ username @{spellings[0]} เหมือนกันบน {len(g['accounts'])} เว็บ")
+        for c in linked:
+            reasons += [f"{w} ({c['confidence']}%)" for w in c["reasons"][:3]]
+        if linked:
+            confidence = max(c["confidence"] for c in linked)
+        else:
+            top = max((scores.get((r["site"].lower(), r["username"].lower()), {}).get("score", 0) for r in g["accounts"]),
+                      default=0)
+            confidence = min(40, top)
+        contradictions = [x for c in linked for x in c.get("contradictions", [])]
+        accounts = sorted(({"id": account_id(r["site"], r["username"]), "site": r["site"], "username": r["username"],
+                            "url": r["url"],
+                            "score": scores.get((r["site"].lower(), r["username"].lower()), {}).get("score", 0)}
+                           for r in g["accounts"]), key=lambda a: (-a["score"], a["site"].lower()))
+        out.append({"core": key, "aliases": spellings, "families": sorted(g["families"]), "accounts": accounts,
+                    "confidence": confidence, "evidence_based": bool(linked), "reasons": reasons[:10],
+                    "clusters": [c["id"] for c in linked], "contradictions": contradictions,
+                    "typed": bool(typed_l & {u.lower() for u in spellings})})
+    out.sort(key=lambda e: (not e["typed"], not e["evidence_based"], -e["confidence"], -len(e["accounts"])))
+    for n, e in enumerate(out, 1):
+        e["id"] = f"entity-{n}"
+        e["title"] = f"Possible identity #{n}"
     return out

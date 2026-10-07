@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sleuth Workspace</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
+<script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+.hero { padding:30px 0 10px; }
+.hero h1 { font-size:26px; margin:0 0 6px; }
+.hero p { margin:0; color:var(--muted); max-width:760px; }
+.cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; padding-bottom:60px; }
+.col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin:14px 0 16px; }
+.row2 { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+.row2 input, .row2 select, textarea { height:36px; border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:0 10px; color:var(--text); min-width:0; }
+.row2 input { flex:1 1 160px; }
+textarea { width:100%; height:120px; padding:8px 10px; resize:vertical; font:inherit; }
+.item { padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
+.item:first-child { border-top:0; }
+.item .top { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.item .top b { font-size:15px; }
+.item .s { color:var(--muted); font-size:12px; }
+.item a { color:var(--accent); text-decoration:none; }
+.item .acts { margin-left:auto; display:flex; gap:6px; }
+.alert { border-left:3px solid var(--warn); padding-left:10px; }
+.alert.unseen { border-left-color:var(--high); }
+.chg { font-size:13px; margin-top:4px; }
+.chg .o { color:var(--muted); text-decoration:line-through; }
+.case-detail { display:flex; flex-direction:column; gap:10px; }
+.kv { display:grid; grid-template-columns:max-content 1fr; gap:4px 12px; font-size:13px; }
+.kv dt { color:var(--muted); }
+.kv dd { margin:0; word-break:break-word; }
+.res h3 { font-size:13px; margin:12px 0 4px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
+.empty-s { color:var(--muted); font-size:13px; padding:8px 0; }
+@media (max-width:980px) { .cols { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
+      Sleuth
+    </div>
+    <nav><a href="/">ค้น Username</a><a href="/scan">สแกนเป้าหมาย</a><a href="/workspace" class="on">Workspace</a></nav>
+    <div class="meta" id="meta"></div>
+    <button class="theme-btn" id="themeBtn" type="button" title="สลับธีม" aria-label="สลับธีม"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Workspace</h1>
+    <p>แฟ้มคดี (Case), รายการเฝ้าดู (Watchlist) พร้อมแจ้งเตือนเมื่อโปรไฟล์เปลี่ยน และฐานข้อมูลข่าวกรองในเครื่องที่รวมทุกอย่างที่ Sleuth เคยเจอ</p>
+  </section>
+  <section class="stats" id="stats"></section>
+
+  <div class="cols">
+    <div class="col">
+      <div class="panel">
+        <h2>แจ้งเตือนจาก Watchlist</h2>
+        <p class="sub">เฉพาะสิ่งที่เปลี่ยน: บัญชีใหม่, bio/ชื่อ/รูปเปลี่ยน, username เปลี่ยน, ลิงก์ภายนอกใหม่</p>
+        <div class="row2"><button type="button" class="btn ghost small" id="markSeen">ทำเครื่องหมายว่าอ่านแล้ว</button></div>
+        <div id="alerts"></div>
+      </div>
+      <div class="panel">
+        <h2>Watchlist</h2>
+        <p class="sub" id="watchSub">ระบบตรวจให้เองระหว่างที่ Sleuth เปิดอยู่ (ทุกนาทีจะดูว่ามีรายการไหนถึงเวลา)</p>
+        <form class="row2" id="watchForm" autocomplete="off">
+          <input id="wTarget" placeholder="username เช่น ice4564" required spellcheck="false">
+          <select id="wHours"><option value="6">ทุก 6 ชม.</option><option value="12">ทุก 12 ชม.</option><option value="24" selected>ทุกวัน</option><option value="168">ทุกสัปดาห์</option></select>
+          <label class="s" style="display:flex;gap:4px;align-items:center;font-size:13px;color:var(--muted)"><input type="checkbox" id="wSearch" style="flex:none"> search engine</label>
+          <button class="btn ghost small" type="submit">เพิ่ม</button>
+          <button class="btn ghost small" type="button" id="watchRunAll">ตรวจทั้งหมดตอนนี้</button>
+        </form>
+        <div id="watch"></div>
+      </div>
+      <div class="panel">
+        <h2>ค้นในฐานข้อมูลข่าวกรอง</h2>
+        <p class="sub">บัญชี, username, โดเมน, อีเมล, URL จาก search engine และความสัมพันธ์ที่มีหลักฐาน จากทุกการค้นที่ผ่านมา ไม่ต้องค้นเว็บใหม่</p>
+        <form class="row2" id="intelForm" autocomplete="off">
+          <input id="intelQ" placeholder="เช่น ice, gmail.com, github" spellcheck="false">
+          <button class="btn ghost small" type="submit">ค้น</button>
+        </form>
+        <div class="res" id="intelRes"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <h2>Case</h2>
+        <p class="sub">รวมเป้าหมาย ผลการค้น หลักฐาน การเปลี่ยนแปลง timeline และบันทึกของคุณไว้ในแฟ้มเดียว</p>
+        <form class="row2" id="caseForm" autocomplete="off">
+          <input id="cName" placeholder="ชื่อ Case เช่น Case #001" required>
+          <input id="cTargets" placeholder="เป้าหมาย คั่นด้วยช่องว่าง" spellcheck="false">
+          <button class="btn ghost small" type="submit">สร้าง</button>
+        </form>
+        <div id="cases"></div>
+      </div>
+      <div class="panel" id="caseBox" hidden><div class="case-detail" id="case"></div></div>
+      <div class="panel">
+        <h2>การค้นล่าสุด</h2>
+        <p class="sub">เปิดผลเดิมได้ทันที (พร้อม replay ว่าระบบทำอะไรไปบ้าง) โดยไม่ต้องค้นใหม่</p>
+        <div id="runs"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>ข้อมูลทั้งหมดเก็บในเครื่องนี้ (~/.sleuth/history.db)</footer>
+
+<script src="/static/common.js"></script>
+<script>
+const J = (url, opts = {}) => fetch(url, { headers: { "Content-Type": "application/json" }, ...opts }).then((r) => {
+  if (!r.ok) throw new Error(r.status + " " + r.statusText);
+  return r.json();
+});
+const day = (s) => (s || "").slice(0, 16).replace("T", " ");
+const VERB = { added: "เพิ่ม", removed: "ลบ", changed: "เปลี่ยน" };
+let openCase = null;
+
+function changeEl(c) {
+  return el("div", { class: "chg" }, el("b", {}, `${c.site} @${c.username}`), ` · ${VERB[c.kind] || ""}${c.label || c.field}: `,
+    c.old ? el("span", { class: "o" }, String(c.old).slice(0, 120)) : "", c.old ? " → " : "", String(c.new || "—").slice(0, 160));
+}
+
+async function loadStats() {
+  try {
+    const r = await J("/api/intel");
+    const L = { runs: "การค้น", accounts: "บัญชี", usernames: "username", domains: "โดเมน", emails: "อีเมล", urls: "URL", relationships: "ความสัมพันธ์", changes: "การเปลี่ยนแปลง", cases: "Case", watchlist: "เฝ้าดู" };
+    $("stats").replaceChildren(...Object.entries(L).map(([k, l]) => el("div", { class: "stat" }, el("b", {}, r.stats[k] ?? 0), el("span", {}, l))));
+  } catch (e) { $("stats").replaceChildren(el("p", { class: "empty-s" }, "ฐานข้อมูลถูกปิดอยู่: " + e.message)); }
+}
+
+async function loadAlerts() {
+  const list = await J("/api/alerts").catch(() => []);
+  $("alerts").replaceChildren(...list.slice(0, 30).map((a) => el("div", { class: "item alert" + (a.seen ? "" : " unseen") },
+    el("div", { class: "top" }, el("b", {}, "@" + a.target), el("span", { class: "s" }, day(a.created) + (a.seen ? "" : " · ใหม่")),
+      a.run_id ? el("span", { class: "acts" }, el("a", { href: "/?run=" + a.run_id }, "เปิดผล")) : ""),
+    ...a.changes.slice(0, 8).map(changeEl))));
+  if (!list.length) $("alerts").append(el("p", { class: "empty-s" }, "ยังไม่มีแจ้งเตือน"));
+}
+
+async function loadWatch() {
+  const w = await J("/api/watch").catch(() => ({ items: [], status: {} }));
+  $("watchSub").textContent = w.status && w.status.running ? `กำลังตรวจ: ${w.status.running}` : "ระบบตรวจให้เองระหว่างที่ Sleuth เปิดอยู่ (ทุกนาทีจะดูว่ามีรายการไหนถึงเวลา)";
+  $("watch").replaceChildren(...w.items.map((x) => {
+    const run = el("button", { type: "button", class: "btn ghost small" }, "ตรวจตอนนี้");
+    run.onclick = async () => { await J("/api/watch/run", { method: "POST", body: JSON.stringify({ target: x.target }) }); setTimeout(refresh, 1500); };
+    const del = el("button", { type: "button", class: "btn ghost small" }, "เลิกเฝ้า");
+    del.onclick = async () => { await J("/api/watch/" + encodeURIComponent(x.target), { method: "DELETE" }); refresh(); };
+    return el("div", { class: "item" }, el("div", { class: "top" }, el("b", {}, "@" + x.target),
+        x.unseen ? el("span", { class: "risk HIGH" }, `${x.unseen} ใหม่`) : "", el("span", { class: "acts" }, run, del)),
+      el("div", { class: "s" }, `ทุก ${x.interval_hours} ชม. · ตรวจล่าสุด ${day(x.last_run) || "-"} · ครั้งถัดไป ${day(x.next_run) || "-"}` + (x.last_error ? ` · ผิดพลาด: ${x.last_error}` : "")));
+  }));
+  if (!w.items.length) $("watch").append(el("p", { class: "empty-s" }, "ยังไม่มีรายการ"));
+}
+
+async function loadCases() {
+  const list = await J("/api/cases").catch(() => []);
+  $("cases").replaceChildren(...list.map((c) => {
+    const open = el("a", { href: "#" }, `#${c.id} ${c.name}`);
+    open.onclick = (e) => { e.preventDefault(); showCase(c.id); };
+    return el("div", { class: "item" }, el("div", { class: "top" }, el("b", {}, open), el("span", { class: "s" }, `${c.runs} การค้น · ${c.status}`)),
+      el("div", { class: "s" }, "เป้าหมาย: " + (c.targets.join(", ") || "-")));
+  }));
+  if (!list.length) $("cases").append(el("p", { class: "empty-s" }, "ยังไม่มี Case (สร้างที่นี่ หรือกด \"บันทึกเข้า Case\" หลังค้นเสร็จ)"));
+}
+
+async function showCase(id) {
+  const c = await J("/api/cases/" + id);
+  openCase = id;
+  $("caseBox").hidden = false;
+  const notes = el("textarea", { placeholder: "บันทึกของคุณเกี่ยวกับ Case นี้" }); notes.value = c.notes || "";
+  const save = el("button", { type: "button", class: "btn ghost small" }, "บันทึกโน้ต");
+  save.onclick = async () => { await J("/api/cases/" + id, { method: "PATCH", body: JSON.stringify({ notes: notes.value }) }); save.textContent = "บันทึกแล้ว ✓"; };
+  const close = el("button", { type: "button", class: "btn ghost small" }, c.status === "open" ? "ปิด Case" : "เปิด Case อีกครั้ง");
+  close.onclick = async () => { await J("/api/cases/" + id, { method: "PATCH", body: JSON.stringify({ status: c.status === "open" ? "closed" : "open" }) }); showCase(id); loadCases(); };
+  const del = el("button", { type: "button", class: "btn ghost small" }, "ลบ Case");
+  del.onclick = async () => { if (confirm(`ลบ Case "${c.name}"? (ผลการค้นยังอยู่ในประวัติ)`)) { await J("/api/cases/" + id, { method: "DELETE" }); $("caseBox").hidden = true; loadCases(); } };
+  const searchAll = el("a", { class: "btn ghost small", href: "/" }, "ค้นเป้าหมายใหม่");
+  const runs = c.runs.map((r) => el("div", { class: "item" }, el("div", { class: "top" },
+      el("a", { href: "/?run=" + r.id }, `ครั้งที่ #${r.id} · ${r.usernames.join(", ")}`), el("span", { class: "s" }, day(r.started))),
+    el("div", { class: "s" }, `${r.summary.accounts_found ?? "?"} บัญชี · หลักฐาน ${r.summary.evidence ?? "?"} · สูง ${r.summary.high ?? 0} / กลาง ${r.summary.medium ?? 0}` +
+      (r.contradictions.length ? ` · ⚠ ขัดแย้ง ${r.contradictions.length}` : "")),
+    ...r.entities.slice(0, 3).map((e) => el("div", { class: "s" }, `${e.title} ${e.confidence}%: ${e.aliases.join(" ≈ ")} (${e.accounts.length} บัญชี)`))));
+  const timeline = c.runs.flatMap((r) => r.timeline || []).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
+  $("case").replaceChildren(
+    el("div", { class: "top", style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, el("h2", { style: "margin:0" }, `Case #${c.id} ${c.name}`),
+      el("span", { class: "s" }, c.status), el("span", { style: "margin-left:auto;display:flex;gap:6px;flex-wrap:wrap" }, close, del)),
+    el("dl", { class: "kv" }, el("dt", {}, "Targets"), el("dd", {}, c.targets.join(", ") || "-"),
+      el("dt", {}, "สร้างเมื่อ"), el("dd", {}, day(c.created)),
+      el("dt", {}, "เฝ้าดูอยู่"), el("dd", {}, c.watching.join(", ") || "-")),
+    el("h3", { class: "s" }, "Findings / การค้นใน Case นี้"), ...(runs.length ? runs : [el("p", { class: "empty-s" }, "ยังไม่มี กด \"บันทึกเข้า Case\" ในหน้าค้นหา")]),
+    el("h3", { class: "s" }, "การเปลี่ยนแปลงของเป้าหมาย"), ...(c.changes.length ? c.changes.slice(0, 15).map(changeEl) : [el("p", { class: "empty-s" }, "ยังไม่มี")]),
+    el("h3", { class: "s" }, "Timeline"), ...(timeline.length ? timeline.map((t) => el("div", { class: "s" }, `${day(t.date)} · ${t.title}${t.detail ? " · " + t.detail : ""}`)) : [el("p", { class: "empty-s" }, "-")]),
+    el("h3", { class: "s" }, "Notes"), notes, el("div", { class: "row2" }, save, searchAll));
+}
+
+async function loadRuns() {
+  const list = await J("/api/runs").catch(() => []);
+  $("runs").replaceChildren(...list.slice(0, 15).map((r) => el("div", { class: "item" }, el("div", { class: "top" },
+      r.has_payload ? el("a", { href: "/?run=" + r.id }, `#${r.id} ${r.usernames.join(", ")}`) : el("span", {}, `#${r.id} ${r.usernames.join(", ")}`),
+      el("span", { class: "s" }, day(r.started))),
+    el("div", { class: "s" }, `${r.stats.found ?? 0} บัญชี · เปลี่ยน ${r.changes}` + (r.has_payload ? "" : " · (ครั้งเก่า ไม่มีผลเต็ม)")))));
+  if (!list.length) $("runs").append(el("p", { class: "empty-s" }, "ยังไม่มี"));
+}
+
+async function intel(q) {
+  const r = await J("/api/intel?q=" + encodeURIComponent(q));
+  const res = r.results || {};
+  const sec = (title, rows, fn) => rows && rows.length ? [el("h3", {}, `${title} (${rows.length})`), ...rows.slice(0, 20).map(fn)] : [];
+  const nodes = [
+    ...sec("บัญชี", res.accounts, (a) => el("div", { class: "item" }, el("a", { href: safeUrl(a.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${a.site} @${a.username}`),
+      el("div", { class: "s" }, `เห็นครั้งแรก ${day(a.first_seen)} · ตรวจล่าสุด ${day(a.last_checked)}` + (a.last_info.name ? ` · ${a.last_info.name}` : "")))),
+    ...sec("Username", res.usernames, (u) => el("div", { class: "item" }, `@${u.username}`, el("div", { class: "s" }, `${u.accounts} บัญชี · ${day(u.first_seen)} → ${day(u.last_seen)}`))),
+    ...sec("โดเมน", res.domains, (d) => el("div", { class: "item" }, d.domain, el("div", { class: "s" }, (d.personal ? "เว็บส่วนตัว · " : "") + (d.emails.join(", ") || "") + ` · ${day(d.last_seen)}`))),
+    ...sec("อีเมล", res.emails, (e) => el("div", { class: "item" }, e.email, el("div", { class: "s" }, "จาก " + e.sources.join(", ")))),
+    ...sec("URL จาก search engine", res.urls, (u) => el("div", { class: "item" }, el("a", { href: safeUrl(u.url) || "#", target: "_blank", rel: "noopener noreferrer" }, u.title || u.url),
+      el("div", { class: "s" }, `พบ ${u.found_by.length} ครั้ง: ` + u.found_by.slice(0, 4).map((x) => `${x.engine} (${x.query})`).join(", ")))),
+    ...sec("ความสัมพันธ์ที่มีหลักฐาน", res.relationships, (x) => el("div", { class: "item" }, `${x.src} → ${x.dst}`, el("div", { class: "s" }, `${x.kind} · ${x.evidence.slice(0, 2).join(" · ")}`))),
+  ];
+  $("intelRes").replaceChildren(...(nodes.length ? nodes : [el("p", { class: "empty-s" }, "ไม่พบในฐานข้อมูล")]));
+}
+
+function refresh() { loadStats(); loadAlerts(); loadWatch(); loadCases(); loadRuns(); if (openCase) showCase(openCase); }
+
+$("watchForm").onsubmit = async (e) => {
+  e.preventDefault();
+  await J("/api/watch", { method: "POST", body: JSON.stringify({ target: $("wTarget").value, interval_hours: Number($("wHours").value), options: { websearch: $("wSearch").checked } }) });
+  $("wTarget").value = ""; refresh();
+};
+$("watchRunAll").onclick = async () => { const r = await J("/api/watch/run", { method: "POST", body: "{}" }); $("watchSub").textContent = r.started ? "กำลังตรวจทั้งหมด..." : "กำลังตรวจอยู่แล้ว"; setTimeout(refresh, 3000); };
+$("markSeen").onclick = async () => { await J("/api/alerts", { method: "POST", body: "{}" }); loadAlerts(); loadWatch(); };
+$("caseForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await J("/api/cases", { method: "POST", body: JSON.stringify({ name: $("cName").value, targets: $("cTargets").value.split(/[\s,]+/).filter(Boolean) }) });
+  $("cName").value = ""; $("cTargets").value = ""; await loadCases(); showCase(r.id);
+};
+$("intelForm").onsubmit = (e) => { e.preventDefault(); if ($("intelQ").value.trim()) intel($("intelQ").value.trim()); };
+fetch("/api/sites").then((r) => r.json()).then((r) => ($("meta").textContent = `v${r.version} · ${r.sites.length} เว็บ`)).catch(() => {});
+refresh();
+setInterval(() => { loadWatch(); loadAlerts(); }, 30000);
+</script>
+</body>
+</html>

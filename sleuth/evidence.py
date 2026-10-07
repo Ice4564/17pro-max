@@ -55,9 +55,14 @@ def build_graph(results: list[dict[str, Any]], queries: dict[str, dict[str, Any]
     def node(nid: str, **attrs: Any) -> None:
         nodes.setdefault(nid, {"id": nid, **attrs})
 
-    def edge(src: str, dst: str, kind: str, label: str) -> None:
+    def edge(src: str, dst: str, kind: str, label: str, evidence: list[str] | None = None) -> None:
+        """Every edge says why it exists: ``evidence`` lists the facts behind it."""
         if src != dst and src in nodes and dst in nodes:
-            edges.setdefault((src, dst, kind), {"source": src, "target": dst, "kind": kind, "label": label})
+            e = edges.setdefault((src, dst, kind), {"source": src, "target": dst, "kind": kind, "label": label,
+                                                    "evidence": []})
+            for x in evidence or [label]:
+                if x and x not in e["evidence"]:
+                    e["evidence"].append(x)
 
     for q in queries.values():
         node(user_id(q["username"]), type="username", label=q["username"], query=q["query"],
@@ -73,36 +78,50 @@ def build_graph(results: list[dict[str, Any]], queries: dict[str, dict[str, Any]
     for q in queries.values():
         uid = user_id(q["username"])
         if q.get("candidate_of"):
-            edge(user_id(q["candidate_of"]), uid, "candidate", q.get("rule") or "รูปแบบใกล้เคียง")
+            edge(user_id(q["candidate_of"]), uid, "candidate", q.get("rule") or "รูปแบบใกล้เคียง",
+                 [f"ระบบเดาชื่อนี้จาก @{q['candidate_of']}: {q.get('rule') or 'รูปแบบใกล้เคียง'} (ไม่ใช่หลักฐานว่าเป็นคนเดียวกัน)"])
         for src in q.get("from", []):
-            edge(src, uid, "mentions", "ระบุ username นี้")
+            why = (q.get("from_why") or {}).get(src) or q.get("why")
+            src_label = nodes[src]["label"] if src in nodes else src
+            edge(src, uid, "mentions", "ระบุ username นี้",
+                 [f"@{q['username']}: {why}" if why else f"{src_label} ระบุ username @{q['username']}"])
 
     for r in found:
         aid = account_id(r["site"], r["username"])
         if not r.get("linked"):
-            edge(user_id(r["username"]), aid, "found", "พบบัญชี")
+            checks = [f"{'✓' if c.get('ok') else '✗' if c.get('ok') is False else '·'} {c['check']}: {c.get('detail', '')}"
+                      for c in r.get("checks", [])]
+            edge(user_id(r["username"]), aid, "found", "พบบัญชี",
+                 [f"{r['site']} ตอบว่ามีบัญชี @{r['username']}" + (f" (HTTP {r['http_status']})" if r.get("http_status") else ""),
+                  *checks])
         for src in r.get("via", []):
-            edge(src, aid, "links", "ลิงก์ไปยังบัญชีนี้")
+            src_label = nodes[src]["label"] if src in nodes else src
+            why = [e for e in r.get("evidence", []) if src_label.split(" @")[0].lower() in e.lower()]
+            edge(src, aid, "links", "ลิงก์ไปยังบัญชีนี้", why or [f"{src_label} ลิงก์ไปที่ {r['url']}"])
 
     for d in domains:
         did = domain_id(d["domain"])
         for src in d.get("via", []):
-            edge(src, did, "website", "ลิงก์ไปเว็บไซต์")
+            edge(src, did, "website", "ลิงก์ไปเว็บไซต์",
+                 [f"ช่องเว็บไซต์ในโปรไฟล์ชี้ไป {d.get('url', d['domain'])}", *([d["note"]] if d.get("note") else [])])
 
     for c in connections:
         a = account_id(c["a"]["site"], c["a"]["username"])
         b = account_id(c["b"]["site"], c["b"]["username"])
-        edge(a, b, "similar", f"อาจเชื่อมโยงกัน {c['confidence']}%")
+        edge(a, b, "similar", f"อาจเชื่อมโยงกัน {c['confidence']}%",
+             [f"{'✓' if x['ok'] else '✗' if x['ok'] is False else '·'} {x['label']}" + (f" ({x['detail']})" if x.get("detail") else "")
+              for x in c["signals"]])
 
     # e-mail addresses published on profiles and on the owner's websites
     for r in found:
         for e in sorted(emails_of(r)):
             node(email_id(e), type="email", label=e)
-            edge(account_id(r["site"], r["username"]), email_id(e), "email", "ระบุอีเมลในโปรไฟล์")
+            edge(account_id(r["site"], r["username"]), email_id(e), "email", "ระบุอีเมลในโปรไฟล์",
+                 [f"โปรไฟล์ {r['site']} @{r['username']} มีอีเมล {e}"])
     for d in domains:
         for e in d.get("emails", []):
             node(email_id(e), type="email", label=e)
-            edge(domain_id(d["domain"]), email_id(e), "email", "อีเมลบนเว็บไซต์")
+            edge(domain_id(d["domain"]), email_id(e), "email", "อีเมลบนเว็บไซต์", [f"หน้าเว็บ {d['domain']} มีอีเมล {e}"])
 
     # search engines: indexed profiles of found accounts, and profile leads we could not check
     leads = 0
@@ -111,15 +130,21 @@ def build_graph(results: list[dict[str, Any]], queries: dict[str, dict[str, Any]
             continue
         src = user_id(h["username"])
         aid = account_id(h["platform"], h["handle"])
+        sources = [f"{x['engine']} อันดับ {x['rank']}: {x['query']}" for x in h.get("found_by", [])] or \
+            [f"{h['engine']} อันดับ {h['rank']}: {h['query']}"]
         if aid in nodes:
-            edge(src, aid, "search", f"พบใน {h['engine']}")
+            edge(src, aid, "search", f"พบใน {h['engine']}", sources)
         elif leads < max_leads and (h.get("same_handle") or h.get("mentions")):
             leads += 1
             lid = lead_id(h["platform"], h["handle"])
             node(lid, type="lead", label=f"{h['platform']} @{h['handle']}", url=h["url"], engine=h["engine"])
-            edge(src, lid, "search", f"{h['engine']}: {h['query']}")
+            edge(src, lid, "search", f"{h['engine']}: {h['query']}", sources)
 
-    return {"nodes": list(nodes.values()), "edges": list(edges.values())}
+    out_edges = list(edges.values())
+    for n, e in enumerate(out_edges, 1):
+        e["id"] = f"edge-{n}"
+        e["n"] = n
+    return {"nodes": list(nodes.values()), "edges": out_edges}
 
 
 # ---- findings ------------------------------------------------------------
@@ -131,8 +156,24 @@ def _level(score: int) -> str:
     return "high" if score >= 70 else "medium" if score >= 45 else "low"
 
 
-def _item(kind: str, text: str, url: str | None = None, ok: bool | None = True) -> dict[str, Any]:
-    return {"type": kind, "text": text, "url": url, "ok": ok}
+# How far a kind of source can be trusted on its own (Source Reliability).
+RELIABILITY = {
+    "check": "HIGH",       # the platform itself answered (official profile page / API)
+    "profile": "HIGH",     # data shown on that official profile
+    "email": "HIGH",       # published by the owner on a profile or their own site
+    "link": "HIGH",        # the owner's own link
+    "origin": "HIGH",
+    "archive": "MEDIUM",   # archive.org snapshot: real page, but maybe outdated
+    "search": "MEDIUM",    # a search engine's index: second-hand
+    "correlation": "MEDIUM",  # Sleuth's own inference from the above
+    "note": "LOW",
+}
+SOURCE_TH = {"HIGH": "สูง", "MEDIUM": "กลาง", "LOW": "ต่ำ"}
+
+
+def _item(kind: str, text: str, url: str | None = None, ok: bool | None = True,
+          reliability: str | None = None) -> dict[str, Any]:
+    return {"type": kind, "text": text, "url": url, "ok": ok, "reliability": reliability or RELIABILITY.get(kind, "MEDIUM")}
 
 
 def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]],
@@ -180,9 +221,18 @@ def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]]
             if info.get("archived"):
                 ev.append(_item("archive", f"archive.org เก็บหน้าโปรไฟล์ไว้ ({info['archived']})", info.get("archive_url")))
             ev += search_items(k)
-            ev += [_item("correlation", f"{s['label']} (+{s['points']})") for s in i.get("signals", [])[1:]]
+            ev += [_item("correlation", f"{s['label']} ({s['points']:+d})", ok=s["points"] >= 0)
+                   for s in i.get("signals", [])[1:] if s["points"] or s.get("kind") == "contradiction"]
             when = seen.get(k, {})
+            if r.get("linked"):
+                source_type, reliability = "owner_link", "HIGH"
+            elif any(c.get("check") == "profile" and c.get("ok") for c in r.get("checks", [])):
+                source_type, reliability = "official_profile", "HIGH"
+            else:
+                source_type, reliability = "site_check", "MEDIUM"
             out.append({"id": account_id(r["site"], r["username"]), "kind": "account",
+                        "source_type": source_type, "reliability": reliability, "fp_risk": i.get("fp_risk"),
+                        "fp_why": i.get("fp_why", []), "signals": i.get("signals", []),
                         "title": f"{r['site']} @{r['username']}", "site": r["site"], "username": r["username"],
                         "url": r["url"], "source": source, "evidence": ev,
                         "first_seen": when.get("first_seen") or r.get("checked_at", ""),
@@ -200,7 +250,8 @@ def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]]
                 conf = max(conf, 25)
             ev += found_in_search
             ev.append(_item("note", "เว็บนี้บล็อกการตรวจอัตโนมัติ ต้องเปิดลิงก์ยืนยันเอง", ok=None))
-            out.append({"id": account_id(r["site"], r["username"]), "kind": "lead",
+            out.append({"id": account_id(r["site"], r["username"]), "kind": "lead", "source_type": "unverified",
+                        "reliability": "MEDIUM" if found_in_search or info.get("archived") else "LOW",
                         "title": f"{r['site']} @{r['username']} (ยังไม่ยืนยัน)", "site": r["site"],
                         "username": r["username"], "url": r["url"], "source": "archive.org / search engine",
                         "evidence": ev, "first_seen": r.get("checked_at", ""), "last_checked": r.get("checked_at", ""),
@@ -217,7 +268,8 @@ def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]]
         if d.get("status") != "ok":
             ev.append(_item("note", f"เปิดไม่ได้: {d.get('error') or d.get('status')}", ok=False))
         conf = 60 if d.get("personal") else 25
-        out.append({"id": domain_id(d["domain"]), "kind": "domain", "title": d["domain"], "url": d.get("url", ""),
+        out.append({"id": domain_id(d["domain"]), "kind": "domain", "source_type": "personal_website" if d.get("personal") else "website",
+                    "reliability": "HIGH" if d.get("personal") else "LOW", "title": d["domain"], "url": d.get("url", ""),
                     "source": f"เว็บไซต์ที่ระบุใน {d.get('source', '')}", "evidence": ev,
                     "first_seen": d.get("checked_at", ""), "last_checked": d.get("checked_at", ""),
                     "confidence": conf, "level": _level(conf)})
@@ -236,7 +288,8 @@ def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]]
             rec["sources"].append(f"เว็บไซต์ {d['domain']}")
             rec["conf"] = max(rec["conf"], 60 if d.get("personal") else 20)
     for e, rec in emails.items():
-        out.append({"id": email_id(e), "kind": "email", "title": e, "url": "mailto:" + e,
+        out.append({"id": email_id(e), "kind": "email", "title": e, "url": "mailto:" + e, "source_type": "published",
+                    "reliability": "HIGH" if rec["conf"] >= 45 else "MEDIUM",
                     "source": "เผยแพร่บน " + ", ".join(rec["sources"][:4]),
                     "evidence": [_item("origin", f"พบบน {s}") for s in rec["sources"]],
                     "first_seen": rec["when"], "last_checked": rec["when"],
@@ -253,8 +306,14 @@ def build_findings(results: list[dict[str, Any]], identity: list[dict[str, Any]]
         ev = [_item("search", h.get("title") or h["url"], h["url"])]
         if h.get("snippet"):
             ev.append(_item("search", h["snippet"]))
-        out.append({"id": fid, "kind": kind, "title": title, "url": h["url"],
-                    "source": f"{h['engine']} · คำค้น {h['query']} (อันดับ {h['rank']})", "evidence": ev,
+        found_by = h.get("found_by") or [{"engine": h["engine"], "query": h["query"], "rank": h["rank"]}]
+        ev += [_item("search", f"พบโดย {x['engine']} คำค้น #{x.get('query_n', '?')} {x['query']} (อันดับ {x['rank']})")
+               for x in found_by]
+        out.append({"id": fid, "kind": kind, "title": title, "url": h["url"], "found_by": found_by,
+                    "source_type": "search_result" if kind == "lead" else "unverified_page",
+                    "reliability": "MEDIUM" if kind == "lead" else "LOW",
+                    "source": f"{h['engine']} · คำค้น {h['query']} (อันดับ {h['rank']})"
+                              + (f" · ซ้ำอีก {len(found_by) - 1} ครั้ง" if len(found_by) > 1 else ""), "evidence": ev,
                     "first_seen": h.get("checked_at", ""), "last_checked": h.get("checked_at", ""),
                     "confidence": conf, "level": "low"})
 
@@ -273,8 +332,13 @@ def _date(value: str) -> str:
 
 def build_timeline(results: list[dict[str, Any]], changes: list[dict[str, Any]] | None = None,
                    seen: dict[tuple[str, str], dict[str, Any]] | None = None,
-                   domains: list[dict[str, Any]] | None = None, run_started: str = "") -> list[dict[str, Any]]:
-    """Dated events about the target, oldest first."""
+                   domains: list[dict[str, Any]] | None = None, run_started: str = "",
+                   usernames: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Dated events about the target, oldest first.
+
+    ``usernames`` (from the history database) adds when each spelling of the
+    target's handle was first seen: 2025 ice4564, 2026-01 ice4564x ...
+    """
     seen = seen or {}
     items: list[dict[str, Any]] = []
 
@@ -319,6 +383,10 @@ def build_timeline(results: list[dict[str, Any]], changes: list[dict[str, Any]] 
         add(c.get("detected_at", ""), "change", f"{c['site']} @{c['username']}: {verb}{c.get('label') or c['field']}",
             f"{c.get('old') or '—'} → {c.get('new') or '—'}", c["site"], c.get("url", ""),
             account_id(c["site"], c["username"]))
+    for u in usernames or []:
+        if u.get("first_seen") and (not run_started or u["first_seen"] < run_started):
+            add(u["first_seen"], "username", f"username: @{u['username']}",
+                f"พบบน {u.get('accounts', 0)} เว็บ" + (f" · ล่าสุด {u['last_seen'][:10]}" if u.get("last_seen") else ""))
     if run_started:
         n = sum(1 for r in results if r["status"] == "found")
         add(run_started, "run", "ค้นหาครั้งนี้", f"พบ {n} บัญชี" + (f", ตามเว็บไซต์ {len(domains)} เว็บ" if domains else ""))

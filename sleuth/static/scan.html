@@ -115,7 +115,7 @@ table.hist tr.click { cursor:pointer; } table.hist tr.click:hover { background:v
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
       Sleuth
     </div>
-    <nav><a href="/">ค้น Username</a><a href="/scan" class="on">สแกนเป้าหมาย</a></nav>
+    <nav><a href="/">ค้น Username</a><a href="/scan" class="on">สแกนเป้าหมาย</a><a href="/workspace">Workspace</a></nav>
     <div class="meta"></div>
     <button class="theme-btn" id="themeBtn" type="button" title="สลับธีม" aria-label="สลับธีม"></button>
   </div>
@@ -228,6 +228,7 @@ async function init() {
   }
   const params = new URLSearchParams(location.search);
   if (params.get("id")) loadScan(+params.get("id"));
+  else if (params.get("target")) { $("target").value = params.get("target"); start(); }  // from the search planner
 }
 const modBoxes = () => [...document.querySelectorAll("#mods input")];
 function countMods() { $("modCount").textContent = modBoxes().filter((b) => b.checked).length; }

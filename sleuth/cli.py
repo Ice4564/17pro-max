@@ -84,6 +84,20 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--changes", action="store_true",
                    help="show recorded profile changes (for the given usernames, or all), then exit")
     g.add_argument("--runs", action="store_true", help="list saved username searches, then exit")
+    g.add_argument("--replay", type=int, metavar="RUN", help="show what the engine did in a saved run, step by step")
+    g.add_argument("--intel", metavar="TEXT", help="search everything the local database knows (accounts, domains, "
+                                                   "emails, URLs, relationships)")
+
+    g = p.add_argument_group("watchlist and cases")
+    g.add_argument("--watch-add", metavar="USERNAME", action="append", help="re-check this username on a schedule")
+    g.add_argument("--watch-interval", type=float, default=24, metavar="HOURS", help="for --watch-add (default 24)")
+    g.add_argument("--watch-remove", metavar="USERNAME", action="append", help="stop watching a username")
+    g.add_argument("--watch-list", action="store_true", help="show the watchlist")
+    g.add_argument("--watch-run", action="store_true",
+                   help="check due watchlist targets once (for Task Scheduler / cron) and print changes")
+    g.add_argument("--alerts", action="store_true", help="show unseen watchlist alerts and mark them seen")
+    g.add_argument("--cases", action="store_true", help="list investigation cases")
+    g.add_argument("--case", metavar="NAME", help="save this search into a case (created if missing)")
 
     g = p.add_argument_group("output")
     g.add_argument("-a", "--print-all", action="store_true", help="also print not-found and unknown results")
@@ -264,6 +278,24 @@ async def _run_search(args: argparse.Namespace, sites, all_sites, history) -> in
             if ev.get("changes"):
                 print(f"\n{C.bold('โปรไฟล์ที่เปลี่ยนไปจากครั้งก่อน')}:")
                 _print_changes(ev["changes"])
+            for e in ev.get("entities", [])[:3]:
+                if e is ev["entities"][0]:
+                    print(f"\n{C.bold('Entity resolution')}:")
+                print(f"  {C.bold(e['title'])} ({e['confidence']}%): " + ", ".join(e["aliases"][:6]))
+                print("    " + ", ".join(f"{a['site']}" for a in e["accounts"][:10]) +
+                      (f" +{len(e['accounts']) - 10}" if len(e["accounts"]) > 10 else ""))
+                print(f"    {C.dim('เพราะ: ' + '; '.join(e['reasons'][:3]))}")
+            for x in ev.get("contradictions", []):
+                if x is ev["contradictions"][0]:
+                    print(f"\n{C.red('⚠ Contradictory evidence detected')} "
+                          f"{C.dim('อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน')}")
+                print(f"  {C.yellow(x['label'])} ({x['scope_label']}): {x['message']}")
+                for v in x["values"][:6]:
+                    print(f"      {v['source']}: {v['value']}")
+            if ev.get("plan"):
+                print(f"\n{C.bold('Next searches')} {C.dim('(วางแผนจากหลักฐานที่เจอ)')}:")
+                for st in ev["plan"][:8]:
+                    print(f"  {st['n']}. [{st['priority']}] {st['title']}\n      {C.dim(st['why'])}")
             sm = ev.get("summary") or {}
             if sm:
                 print(f"\n{C.bold('Dashboard')}: {', '.join(sm['targets'])}\n"
@@ -282,6 +314,11 @@ async def _run_search(args: argparse.Namespace, sites, all_sites, history) -> in
                 print(C.dim(f"         {s['cached']} answer(s) reused from the cache (--no-cache to ask again)"))
             if ev.get("run_id"):
                 print(C.dim(f"         saved as run #{ev['run_id']} (snapshots for change tracking)"))
+                if getattr(args, "case", None) and history:
+                    case = next((c for c in history.list_cases() if c["name"] == args.case), None)
+                    cid = case["id"] if case else history.create_case(args.case)
+                    history.update_case(cid, add_run=ev["run_id"])
+                    print(C.dim(f"         added to case #{cid} {args.case}"))
 
     results = [r.to_dict() for r in searcher.results]
     formats = _formats(args.format)
@@ -292,7 +329,8 @@ async def _run_search(args: argparse.Namespace, sites, all_sites, history) -> in
                 "identity": searcher.identity, "connections": searcher.connections, "domains": searcher.domains,
                 "queries": list(searcher.queries.values()), "graph": searcher.graph, "clusters": searcher.clusters,
                 "findings": searcher.findings, "timeline": searcher.timeline, "changes": searcher.changes,
-                "search": searcher.search, "summary": searcher.summary}
+                "search": searcher.search, "summary": searcher.summary, "entities": searcher.entities,
+                "contradictions": searcher.contradictions, "plan": searcher.plan, "replay": searcher.replay}
         for fmt in formats:
             if fmt not in report.ALL_FORMATS:
                 print(C.red(f"unknown format: {fmt}"))
@@ -381,6 +419,57 @@ async def run_scan_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_workspace_cli(args: argparse.Namespace) -> int:
+    """Watchlist, alerts, cases, intelligence search and replay."""
+    from .history import History
+    h = History()
+    try:
+        for t in args.watch_add or []:
+            h.watch_add(t, args.watch_interval, {"depth": args.depth, "websearch": args.web_search})
+            print(f"{C.green('+')} เพิ่ม {t} ใน watchlist (ตรวจทุก {args.watch_interval:g} ชั่วโมง)")
+        for t in args.watch_remove or []:
+            print(f"{'-' if h.watch_remove(t) else '?'} {t}")
+        if args.watch_list or args.watch_add:
+            for w in h.watch_list():
+                print(f"  {w['target']:<24} ทุก {w['interval_hours']:g} ชม.  ตรวจล่าสุด {(w['last_run'] or '-')[:16]}  "
+                      f"ครั้งถัดไป {(w['next_run'] or '-')[:16]}  แจ้งเตือนใหม่ {w['unseen']}")
+        if args.alerts:
+            items = h.alerts(unseen_only=True)
+            if not items:
+                print("ไม่มีแจ้งเตือนใหม่")
+            for a in items:
+                print(f"{C.yellow('[!]')} {C.bold(a['target'])} {C.dim(a['created'][:16])}")
+                _print_changes(a["changes"])
+            h.mark_alerts_seen()
+        if args.cases:
+            for c in h.list_cases():
+                print(f"#{c['id']:<4} {c['name']:<30} {', '.join(c['targets'])}  ({c['runs']} runs, {c['status']})")
+        if args.intel:
+            res = h.intel_search(args.intel)
+            for kind, rows in res.items():
+                if not rows:
+                    continue
+                print(C.bold(f"{kind} ({len(rows)})"))
+                for r in rows[:15]:
+                    label = {"accounts": lambda x: f"{x['site']} @{x['username']}  {x['url']}",
+                             "usernames": lambda x: f"@{x['username']}  {x['accounts']} บัญชี  {(x['first_seen'] or '')[:10]}",
+                             "domains": lambda x: f"{x['domain']}  {'personal ' if x['personal'] else ''}{', '.join(x['emails'])}",
+                             "emails": lambda x: f"{x['email']}  จาก {', '.join(x['sources'][:3])}",
+                             "urls": lambda x: f"{x['url']}  พบ {len(x['found_by'])} ครั้ง",
+                             "relationships": lambda x: f"{x['src']} → {x['dst']} ({x['kind']})"}[kind](r)
+                    print(f"  {label}")
+        if args.replay:
+            run = h.get_run(args.replay)
+            if not run or not run.get("payload"):
+                print(C.red(f"ไม่พบข้อมูลของ run #{args.replay}"))
+                return 1
+            for x in run["payload"]["done"].get("replay", []):
+                print(f"  {x['t'][11:19]} +{x['s']:>5}s  {C.bold(x['action'])}  {x['detail']}")
+    finally:
+        h.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Thai text on Windows consoles
@@ -420,6 +509,31 @@ def main(argv: list[str] | None = None) -> int:
             if args.numbers and parse_range(args.numbers):
                 names = [c.username for c in numbered(u, *parse_range(args.numbers))]
                 print(f"  {C.dim('เติมเลข:')} {', '.join(names)}")
+        return 0
+
+    if any((args.watch_add, args.watch_remove, args.watch_list, args.alerts, args.cases, args.intel,
+            args.replay)):
+        return run_workspace_cli(args)
+
+    if args.watch_run:
+        from .history import History
+        from .watch import run_due
+        h = History()
+
+        def show(res: dict) -> None:
+            if res.get("error"):
+                print(f"{C.red('[!]')} {res['target']}: {res['error']}")
+            elif res["changes"]:
+                print(f"{C.yellow('[Δ]')} {C.bold(res['target'])}: {len(res['changes'])} การเปลี่ยนแปลง")
+                _print_changes(res["changes"])
+            else:
+                print(f"{C.green('[=]')} {res['target']}: ไม่มีอะไรเปลี่ยน ({res.get('found', 0)} บัญชี)")
+        try:
+            done = asyncio.run(run_due(h, sites, all_sites, args.usernames or None, on_result=show))
+            if not done:
+                print("ไม่มี target ที่ถึงเวลาตรวจ (ใช้ --watch-list ดูรายการ)")
+        finally:
+            h.close()
         return 0
 
     if args.clear_cache or args.changes or args.runs:
