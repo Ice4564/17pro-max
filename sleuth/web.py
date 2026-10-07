@@ -12,6 +12,8 @@ from aiohttp import web
 
 from . import __version__, report
 from .engine import SearchConfig, Searcher
+from .history import History
+from .mutations import mutations
 from .sites import all_tags, filter_sites, load_sites
 
 STATIC = Path(__file__).parent / "static"
@@ -25,9 +27,21 @@ def _clamp(value: str | None, default: float, lo: float, hi: float) -> float:
         return default
 
 
-def create_app(db: str | None = None) -> web.Application:
+def create_app(db: str | None = None, history: str | None = None) -> web.Application:
     app = web.Application()
     app["all_sites"] = load_sites(db)
+
+    async def open_history(app_: web.Application):
+        try:
+            app_["history"] = History(history)
+        except Exception as e:  # unwritable home folder: search still works, just without history/cache
+            print(f"history disabled: {e}")
+            app_["history"] = None
+        yield
+        if app_["history"]:
+            app_["history"].close()
+
+    app.cleanup_ctx.append(open_history)
 
     async def index(_: web.Request) -> web.FileResponse:
         return web.FileResponse(STATIC / "index.html")
@@ -54,8 +68,13 @@ def create_app(db: str | None = None) -> web.Application:
             max_usernames=10,
             concurrency=40,
             variants=q.get("variants") == "1",
+            max_candidates=int(_clamp(q.get("max_candidates"), 12, 0, 30)),
             archive=q.get("archive", "1") == "1",
             avatars=q.get("avatars", "1") == "1",
+            domains=q.get("domains", "1") == "1",
+            web_search=q.get("websearch", "1") == "1",
+            cache=q.get("cache", "1") == "1",
+            host_interval=0.3,
         )
 
         resp = web.StreamResponse(headers={
@@ -64,7 +83,8 @@ def create_app(db: str | None = None) -> web.Application:
             "X-Accel-Buffering": "no",
         })
         await resp.prepare(request)
-        searcher = Searcher(selected, cfg, all_sites=app["all_sites"])
+        searcher = Searcher(selected, cfg, all_sites=app["all_sites"],
+                            history=app["history"] if q.get("history", "1") == "1" else None)
         gen = searcher.run(usernames)
         try:
             async for ev in gen:
@@ -77,25 +97,75 @@ def create_app(db: str | None = None) -> web.Application:
 
     async def make_report(request: web.Request) -> web.Response:
         fmt = request.match_info["fmt"]
-        if fmt not in report.FORMATS:
+        if fmt not in report.ALL_FORMATS:
             raise web.HTTPNotFound()
         data = await request.json()
         results = [r for r in data.get("results", []) if isinstance(r, dict) and "status" in r]
-        identity = [i for i in data.get("identity", []) if isinstance(i, dict)]
-        meta = {"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "identity": identity}
+        def dicts(key: str) -> list[dict]:
+            v = data.get(key)
+            return [i for i in v if isinstance(i, dict)] if isinstance(v, list) else []
+
+        def obj(key: str) -> dict:
+            v = data.get(key)
+            return v if isinstance(v, dict) else {}
+
+        graph = obj("graph")
+        search_data = obj("search")
+        usernames = [u for u in data.get("usernames", []) if isinstance(u, str)][:MAX_USERNAMES] \
+            if isinstance(data.get("usernames"), list) else []
+        meta = {"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "usernames": usernames,
+                "identity": dicts("identity"), "connections": dicts("connections"), "clusters": dicts("clusters"),
+                "domains": dicts("domains"), "queries": dicts("queries"), "findings": dicts("findings"),
+                "timeline": dicts("timeline"), "changes": dicts("changes"), "summary": obj("summary"),
+                "search": {"hits": [h for h in search_data.get("hits", []) if isinstance(h, dict)],
+                           "engines": [e for e in search_data.get("engines", []) if isinstance(e, dict)]},
+                "graph": {"nodes": [n for n in graph.get("nodes", []) if isinstance(n, dict)],
+                          "edges": [e for e in graph.get("edges", []) if isinstance(e, dict)]}}
+        names = "_".join(usernames or sorted({r.get("username", "") for r in results}))[:50] or "report"
+        names = "".join(c if c.isalnum() or c in "._-" else "_" for c in names)
+        if fmt == "pdf":
+            html = report.to_html(results, meta)
+            try:
+                pdf = await asyncio.get_running_loop().run_in_executor(None, report.to_pdf, html)
+            except RuntimeError as e:
+                # no Chrome/Edge on this machine: the page falls back to the browser's own print dialog
+                raise web.HTTPNotImplemented(text=str(e))
+            return web.Response(body=pdf, headers={"Content-Type": "application/pdf",
+                                                    "Content-Disposition": f'attachment; filename="sleuth_{names}.pdf"'})
         body = report.render(fmt, results, meta)
-        names = "_".join(sorted({r.get("username", "") for r in results}))[:50] or "report"
-        ctype = {"html": "text/html", "json": "application/json", "csv": "text/csv", "txt": "text/plain"}[fmt]
+        ctype = {"html": "text/html", "json": "application/json", "csv": "text/csv", "txt": "text/plain",
+                 "md": "text/markdown"}[fmt]
         return web.Response(
             body=(("﻿" if fmt == "csv" else "") + body).encode("utf-8"),
             headers={"Content-Type": f"{ctype}; charset=utf-8",
                      "Content-Disposition": f'attachment; filename="sleuth_{names}.{fmt}"'},
         )
 
+    async def history_view(request: web.Request) -> web.Response:
+        h: History | None = request.app["history"]
+        if not h:
+            return web.json_response({"enabled": False, "runs": [], "changes": []})
+        names = [u.strip().lstrip("@") for u in request.query.get("u", "").replace(",", " ").split() if u.strip()]
+        runs = h.list_runs(names[0] if len(names) == 1 else None)
+        return web.json_response({"enabled": True, "path": str(h.path), "runs": runs,
+                                  "changes": h.changes_for(names or None, limit=100)})
+
+    async def clear_cache(request: web.Request) -> web.Response:
+        h: History | None = request.app["history"]
+        return web.json_response({"cleared": h.clear_cache() if h else 0})
+
+    async def mutation_preview(request: web.Request) -> web.Response:
+        u = request.query.get("u", "").strip().lstrip("@")[:40]
+        n = int(_clamp(request.query.get("n"), 12, 1, 30))
+        return web.json_response([{"username": c.username, "rule": c.rule} for c in mutations(u, n)] if u else [])
+
     app.router.add_get("/", index)
     app.router.add_get("/api/sites", sites)
     app.router.add_get("/api/search", search)
     app.router.add_post("/api/report/{fmt}", make_report)
+    app.router.add_get("/api/history", history_view)
+    app.router.add_post("/api/cache/clear", clear_cache)
+    app.router.add_get("/api/mutations", mutation_preview)
     app.router.add_static("/static", STATIC)
     add_scan_routes(app)
     return app

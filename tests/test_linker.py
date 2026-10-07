@@ -28,7 +28,8 @@ def make_app():
     async def code(req):
         u = req.match_info["u"]
         if u in ("alice", "alice.ig", "aliceig"):
-            return web.Response(text='<meta property="og:title" content="Alice Example">', content_type="text/html")
+            return web.Response(text=f'<meta property="og:title" content="Alice Example"><p>@{u}</p>',
+                                content_type="text/html")
         return web.Response(status=404, text="no")
 
     app = web.Application()
@@ -92,7 +93,9 @@ def test_helpers():
     assert got == {("Instagram", "nat.geo", "bio"), ("TikTok", "natgeo_tt", "bio"), ("Facebook", "NatGeoTH", "bio")}
     assert variants("john.doe") == ["johndoe", "john_doe", "john-doe"]
     assert variants("alice") == []
-    assert variants("bob123") == ["bob"]
+    assert variants("bob123") == ["bob_123", "bob.123", "bob-123", "bob", "bob1234", "123bob"]
+    assert variants("123sky") == ["123_sky", "123.sky", "123-sky", "sky123"]
+    assert variants("bob129") == ["bob_129", "bob.129", "bob-129", "bob", "129bob"]  # not a run: no 1210
 
 
 def test_identity_names_must_be_full_names():

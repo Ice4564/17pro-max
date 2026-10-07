@@ -20,6 +20,7 @@ from typing import Any
 import aiohttp
 
 from ..engine import SearchConfig, make_session, read_body
+from ..similarity import WEBMAIL  # noqa: F401  (re-exported for scan modules)
 
 # event type -> (Thai label, group)
 EVENT_TYPES: dict[str, tuple[str, str]] = {
@@ -56,13 +57,9 @@ EVENT_TYPES: dict[str, tuple[str, str]] = {
     "GRAVATAR": ("Gravatar", "identity"),
     "PGP_KEY": ("PGP key", "identity"),
     "HUMAN_NAME": ("ชื่อคน", "identity"),
+    "WEB_MENTION": ("หน้าเว็บที่กล่าวถึง", "identity"),
 }
 
-WEBMAIL = {
-    "gmail.com", "googlemail.com", "hotmail.com", "outlook.com", "live.com", "yahoo.com",
-    "icloud.com", "me.com", "proton.me", "protonmail.com", "aol.com", "gmx.com", "yandex.ru",
-    "mail.ru", "hotmail.co.th", "yahoo.co.th", "qq.com", "163.com",
-}
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@([A-Za-z0-9\-]+\.)+[A-Za-z]{2,}$")
 DOMAIN_RE = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
@@ -117,6 +114,7 @@ class ScanConfig:
         "ip": 25,           # IPs to enrich (geo, rdap, ports)
         "username": 5,      # usernames to search on all sites
         "email": 25,        # emails to enrich
+        "search": 3,        # usernames / emails to look up in search engines
     })
 
 
@@ -180,6 +178,7 @@ class Module:
     title = ""
     description = ""
     category = "infra"  # infra | web | identity | security
+    group = ""  # username | social | domain | email | image | search (see modules/__init__.py)
     watches: tuple[str, ...] = ()
     default = True
 
@@ -189,7 +188,8 @@ class Module:
 
     def info(self) -> dict[str, Any]:
         return {"name": self.name, "title": self.title, "description": self.description,
-                "category": self.category, "watches": list(self.watches), "default": self.default}
+                "category": self.category, "group": self.group, "watches": list(self.watches),
+                "default": self.default, "plugin": getattr(self, "plugin", None)}
 
 
 class Scanner:

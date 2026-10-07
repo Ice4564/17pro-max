@@ -307,7 +307,10 @@
       "social",
       "coding"
     ],
-    "claimed": "kev"
+    "claimed": "kev",
+    "aliases": [
+      "https://fosstodon.org/users/{}"
+    ]
   },
   "Genius": {
     "url": "https://genius.com/{}",
@@ -369,7 +372,10 @@
       "social",
       "links"
     ],
-    "claimed": "beau"
+    "claimed": "beau",
+    "aliases": [
+      "https://en.gravatar.com/{}"
+    ]
   },
   "Gumroad": {
     "url": "https://{}.gumroad.com/",
@@ -560,7 +566,10 @@
     "tags": [
       "coding"
     ],
-    "claimed": "lee215"
+    "claimed": "lee215",
+    "aliases": [
+      "https://leetcode.com/{}/"
+    ]
   },
   "Lemmy": {
     "url": "https://lemmy.world/u/{}",
@@ -571,7 +580,10 @@
       "social",
       "forum"
     ],
-    "claimed": "ruud"
+    "claimed": "ruud",
+    "aliases": [
+      "https://lemmy.world/user/{}"
+    ]
   },
   "Letterboxd": {
     "url": "https://letterboxd.com/{}/",
@@ -623,7 +635,10 @@
     "tags": [
       "social"
     ],
-    "claimed": "Gargron"
+    "claimed": "Gargron",
+    "aliases": [
+      "https://mastodon.social/users/{}"
+    ]
   },
   "Medium": {
     "url": "https://medium.com/@{}",
@@ -633,7 +648,10 @@
     "tags": [
       "blog"
     ],
-    "claimed": "ev"
+    "claimed": "ev",
+    "aliases": [
+      "https://{}.medium.com/"
+    ]
   },
   "Minecraft": {
     "url": "https://namemc.com/profile/{}",
@@ -731,7 +749,10 @@
     "tags": [
       "creator"
     ],
-    "claimed": "kurzgesagt"
+    "claimed": "kurzgesagt",
+    "aliases": [
+      "https://www.patreon.com/c/{}"
+    ]
   },
   "Pinterest": {
     "url": "https://www.pinterest.com/{}/",
@@ -775,6 +796,9 @@
       "forum"
     ],
     "claimed": "spez",
+    "aliases": [
+      "https://www.reddit.com/u/{}"
+    ],
     "disabled": true
   },
   "Roblox": {
@@ -832,7 +856,10 @@
     "tags": [
       "social"
     ],
-    "claimed": "teamsnapchat"
+    "claimed": "teamsnapchat",
+    "aliases": [
+      "https://www.snapchat.com/@{}"
+    ]
   },
   "SoundCloud": {
     "url": "https://soundcloud.com/{}",
@@ -884,7 +911,10 @@
       "blog",
       "writing"
     ],
-    "claimed": "platformer"
+    "claimed": "platformer",
+    "aliases": [
+      "https://substack.com/@{}"
+    ]
   },
   "Telegram": {
     "url": "https://t.me/{}",
@@ -896,7 +926,10 @@
       "social",
       "messaging"
     ],
-    "claimed": "durov"
+    "claimed": "durov",
+    "aliases": [
+      "https://telegram.me/{}"
+    ]
   },
   "Threads": {
     "url": "https://www.threads.net/@{}",
@@ -938,7 +971,10 @@
       "social",
       "blog"
     ],
-    "claimed": "staff"
+    "claimed": "staff",
+    "aliases": [
+      "https://www.tumblr.com/{}"
+    ]
   },
   "Twitch": {
     "url": "https://www.twitch.tv/{}",
@@ -1049,6 +1085,10 @@
     "tags": [
       "video"
     ],
-    "claimed": "youtube"
+    "claimed": "youtube",
+    "aliases": [
+      "https://www.youtube.com/c/{}",
+      "https://www.youtube.com/user/{}"
+    ]
   }
 }

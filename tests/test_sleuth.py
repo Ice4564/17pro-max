@@ -36,7 +36,7 @@ def make_app() -> web.Application:
 
     async def redir(req):  # response_url site
         if req.match_info["u"] in known:
-            return web.Response(text="ok")
+            return web.Response(text=f"profile of {req.match_info['u']}")
         raise web.HTTPFound("/missing")
 
     async def api(req):  # JSON API, POST

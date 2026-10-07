@@ -49,6 +49,8 @@ class Site:
     claimed: str = "blue"
     extract: bool = True
     owner_links: bool = False  # every external link on the page belongs to the owner (link-in-bio sites)
+    aliases: list[str] = field(default_factory=list)  # other profile URL forms: site.com/u/{}, site.com/@{}
+    verify: bool = True  # run page-level checks (title/canonical/username) on top of the site rule
     disabled: bool = False
 
     # ---- construction -------------------------------------------------
@@ -66,6 +68,9 @@ class Site:
             raise ValueError(f"{name}: url must contain '{{}}'")
         if check == "message" and not d.get("error_msg"):
             raise ValueError(f"{name}: check 'message' needs error_msg")
+        for alias in as_list(d.get("aliases")):
+            if "{}" not in alias:
+                raise ValueError(f"{name}: alias {alias!r} must contain '{{}}'")
         return cls(
             name=name,
             url=d["url"],
@@ -84,6 +89,8 @@ class Site:
             claimed=d.get("claimed", "blue"),
             extract=bool(d.get("extract", True)),
             owner_links=bool(d.get("owner_links", False)),
+            aliases=as_list(d.get("aliases")),
+            verify=bool(d.get("verify", True)),
             disabled=bool(d.get("disabled", False)),
         )
 
@@ -111,6 +118,10 @@ class Site:
         d["claimed"] = self.claimed
         if not self.extract:
             d["extract"] = False
+        if self.aliases:
+            d["aliases"] = self.aliases
+        if not self.verify:
+            d["verify"] = False
         if self.owner_links:
             d["owner_links"] = True
         if self.disabled:
@@ -140,30 +151,35 @@ class Site:
 
     # ---- profile-link recognition (for recursive search) ---------------
     @cached_property
-    def _link_regex(self) -> re.Pattern[str]:
-        template = re.sub(r"^https?://", "", self.url)
-        template = re.sub(r"^www\.", "", template).rstrip("/")
-        prefix, _, suffix = template.partition("{}")
-        # A placeholder followed by "." is a subdomain: no dots allowed.
-        charset = r"[A-Za-z0-9_\-]" if suffix.startswith(".") else r"[A-Za-z0-9_.\-]"
-        pattern = (
-            r"^(?:https?://)?(?:www\.|m\.|mobile\.)?"
-            + re.escape(prefix)
-            + rf"({charset}{{2,40}})"
-            + re.escape(suffix)
-            + r"/?(?:[?#].*)?$"
-        )
-        return re.compile(pattern, re.IGNORECASE)
+    def _link_regexes(self) -> list[re.Pattern[str]]:
+        return [_template_regex(t) for t in [self.url, *self.aliases]]
 
     def match_link(self, link: str) -> str | None:
         """Return the username if ``link`` is a profile URL on this site."""
-        m = self._link_regex.match(link.strip())
+        m = next((m for rx in self._link_regexes if (m := rx.match(link.strip()))), None)
         if not m:
             return None
         username = m.group(1).strip(".")
         if username.lower() in RESERVED_NAMES or not self.valid(username):
             return None
         return username
+
+
+def _template_regex(url_template: str) -> re.Pattern[str]:
+    """Regex that recognises a profile URL built from ``url_template``."""
+    template = re.sub(r"^https?://", "", url_template)
+    template = re.sub(r"^www\.", "", template).rstrip("/")
+    prefix, _, suffix = template.partition("{}")
+    # A placeholder followed by "." is a subdomain: no dots allowed.
+    charset = r"[A-Za-z0-9_\-]" if suffix.startswith(".") else r"[A-Za-z0-9_.\-]"
+    pattern = (
+        r"^(?:https?://)?(?:www\.|m\.|mobile\.|old\.|new\.)?"
+        + re.escape(prefix)
+        + rf"({charset}{{2,40}})"
+        + re.escape(suffix)
+        + r"/?(?:[?#].*)?$"
+    )
+    return re.compile(pattern, re.IGNORECASE)
 
 
 def _fill(obj: Any, username: str) -> Any:

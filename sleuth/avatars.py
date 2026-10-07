@@ -26,7 +26,10 @@ MAX_GROUP = 8         # bigger groups are a shared default/placeholder image
 # Default "no photo" images that many accounts share (e.g. Mastodon's missing.png)
 PLACEHOLDER_URL = re.compile(
     r"missing\.png|default[_-]?(avatar|profile|user)|avatar[_-]?default|no[_-]?avatar|placeholder|"
-    r"blank[_-]?(avatar|profile)|anonymous|/identicon|gravatar\.com/avatar/0+|d=mp|d=mm", re.I)
+    r"blank[_-]?(avatar|profile)|anonymous|/identicon|gravatar\.com/avatar/0+|d=mp|d=mm|"
+    # site-wide share images picked up from og:image, not the user's picture
+    r"opengraph|og[_-]?image|social[_-]?(card|preview)|share[_-]?(image|card)|subscribe-card|/logo[^/]*\.\w+$|"
+    r"banner|favicon|apple-touch-icon", re.I)
 
 
 def available() -> bool:
@@ -66,9 +69,9 @@ async def _fetch_hash(session: aiohttp.ClientSession, url: str, sem: asyncio.Sem
         return None
 
 
-async def match_avatars(session: aiohttp.ClientSession, results: list[dict[str, Any]],
-                        limit: int = 60) -> dict[tuple[str, str], list[str]]:
-    """Return ``{(site, username): ["Other Site (@user)", ...]}`` for look-alike avatars."""
+async def hash_avatars(session: aiohttp.ClientSession, results: list[dict[str, Any]],
+                       limit: int = 60) -> dict[tuple[str, str], int]:
+    """``{(site, username): dhash}`` for every found account with a usable avatar."""
     if not available():
         return {}
     found = [r for r in results if r["status"] == "found"
@@ -77,12 +80,27 @@ async def match_avatars(session: aiohttp.ClientSession, results: list[dict[str, 
     found = found[:limit]
     sem = asyncio.Semaphore(8)
     hashes = await asyncio.gather(*(_fetch_hash(session, r["info"]["avatar"], sem) for r in found))
-    items = [(r, h) for r, h in zip(found, hashes) if h is not None]
+    return {(r["site"].lower(), r["username"].lower()): h for r, h in zip(found, hashes) if h is not None}
 
+
+def distance(a: int, b: int) -> int:
+    return bin(a ^ b).count("1")
+
+
+def match_hashes(results: list[dict[str, Any]],
+                 hashes: dict[tuple[str, str], int]) -> dict[tuple[str, str], list[str]]:
+    """Return ``{(site, username): ["Other Site (@user)", ...]}`` for look-alike avatars."""
+    items = [(r, hashes[k]) for r in results
+             if (k := (r["site"].lower(), r["username"].lower())) in hashes]
     matches: dict[tuple[str, str], list[str]] = {}
     for i, (a, ha) in enumerate(items):
         group = [b for j, (b, hb) in enumerate(items)
-                 if j != i and b["site"] != a["site"] and bin(ha ^ hb).count("1") <= MAX_DISTANCE]
+                 if j != i and b["site"] != a["site"] and distance(ha, hb) <= MAX_DISTANCE]
         if group and len(group) < MAX_GROUP:
             matches[(a["site"].lower(), a["username"].lower())] = [f"{b['site']} (@{b['username']})" for b in group]
     return matches
+
+
+async def match_avatars(session: aiohttp.ClientSession, results: list[dict[str, Any]],
+                        limit: int = 60) -> dict[tuple[str, str], list[str]]:
+    return match_hashes(results, await hash_avatars(session, results, limit))

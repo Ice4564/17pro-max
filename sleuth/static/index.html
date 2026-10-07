@@ -10,26 +10,53 @@
 <style>
 .hero { padding:30px 0 6px; }
 .hero h1 { font-size:26px; margin:0 0 6px; letter-spacing:-.2px; }
-.hero p { margin:0; color:var(--muted); max-width:720px; }
+.hero p { margin:0; color:var(--muted); max-width:760px; }
 
 form.search { margin-top:18px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:var(--shadow); }
 .opts { display:flex; gap:8px 18px; flex-wrap:wrap; align-items:center; margin-top:12px; font-size:14px; color:var(--muted); }
 .opts label { display:flex; align-items:center; gap:6px; }
 .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.mutprev { margin-top:8px; font-size:12px; color:var(--muted); }
+.mutprev .chip { font-size:12px; font-family:ui-monospace,Consolas,monospace; }
 
 .status { margin:20px 0 14px; display:none; }
 .status.show { display:block; }
 .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:12px; }
 
+/* dashboard */
+.dash { display:none; margin:0 0 14px; }
+.dash.show { display:block; }
+.dash-top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.dash-top .target { font-size:20px; font-weight:700; overflow-wrap:anywhere; }
+.dash-top .when { color:var(--muted); font-size:13px; }
+.tiles { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+.tiles .stat { cursor:pointer; text-align:left; font:inherit; color:inherit; }
+.tiles .stat:hover { border-color:var(--accent); }
+.tabs { display:flex; gap:4px; flex-wrap:wrap; margin-top:14px; border-bottom:1px solid var(--line); }
+.tabs button { border:0; background:transparent; padding:9px 14px; cursor:pointer; color:var(--muted); font-size:14px; border-bottom:2px solid transparent; margin-bottom:-1px; display:flex; align-items:center; gap:6px; }
+.tabs button[aria-selected="true"] { color:var(--text); font-weight:600; border-bottom-color:var(--accent); }
+.tabs .n { font-size:11px; background:var(--panel2); border-radius:99px; padding:0 7px; color:var(--muted); font-weight:600; }
+
 .layout { display:none; grid-template-columns:minmax(0,1fr) 340px; gap:16px; align-items:start; padding-bottom:60px; }
 .layout.show { display:grid; }
 .side { position:sticky; top:12px; display:flex; flex-direction:column; gap:12px; }
+.tabpanel { display:flex; flex-direction:column; gap:12px; }
 
 .idrow { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line); }
 .idrow:first-of-type { border-top:0; }
 .idrow .t { min-width:0; flex:1; }
 .idrow a { color:var(--accent); text-decoration:none; word-break:break-all; font-size:14px; font-weight:600; }
 .idrow .ev { font-size:12px; color:var(--muted); }
+.score { font-variant-numeric:tabular-nums; font-weight:700; font-size:12px; border-radius:6px; padding:2px 7px; background:var(--panel2); color:var(--muted); white-space:nowrap; }
+.score.high { background:var(--high-bg); color:var(--high); } .score.medium { background:var(--medium-bg); color:var(--medium); }
+
+.cluster { padding:10px 0; border-top:1px solid var(--line); }
+.cluster:first-of-type { border-top:0; }
+.cluster .head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+.cluster .pct { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+.cluster .accts { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.cluster .accts a { font-size:13px; text-decoration:none; border:1px solid var(--line); border-radius:8px; padding:2px 8px; color:var(--accent); }
+.cluster .why { font-size:12px; color:var(--muted); margin-top:6px; }
 
 .avatars { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
 .avatars a { display:block; width:52px; height:52px; border-radius:50%; overflow:hidden; border:2px solid var(--line); background:var(--panel2); }
@@ -38,8 +65,14 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 .facts dd { margin:2px 0 0; font-size:14px; word-break:break-word; }
 .facts dd a { color:var(--accent); }
 .dorks { display:flex; flex-wrap:wrap; gap:6px; }
+.hit { padding:7px 0; border-top:1px solid var(--line); font-size:13px; }
+.hit:first-child { border-top:0; }
+.hit a { color:var(--accent); text-decoration:none; font-weight:600; word-break:break-word; }
+.hit .s { color:var(--muted); font-size:12px; }
+.eng { font-size:11px; font-weight:600; border-radius:99px; padding:0 7px; background:var(--panel2); color:var(--muted); }
+.eng.blocked { background:var(--warn-bg); color:var(--warn); }
 
-.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .toolbar .spacer { flex:1; }
 .filter { height:36px; border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:0 10px; min-width:140px; flex:1 1 140px; max-width:240px; }
 
@@ -63,14 +96,93 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 .card.compact { padding:10px 14px; }
 .card .err { font-size:12px; color:var(--muted); margin-top:4px; }
 .card .actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.card.is-candidate { border-style:dashed; }
+.badge.cand { background:var(--warn-bg); color:var(--warn); }
+.badge.disc { background:var(--panel2); color:var(--accent); }
+.badge.cache { background:var(--panel2); color:var(--muted); }
+.checks { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+.ck { font-size:11px; border:1px solid var(--line); border-radius:6px; padding:0 6px; cursor:help; }
+.ck.y, .sig.y, .evl .y { color:var(--ok); } .ck.n, .sig.n, .evl .n { color:var(--bad); } .ck.u, .sig.u, .evl .u { color:var(--muted); }
 
+.conn { padding:10px 0; border-top:1px solid var(--line); }
+.conn:first-of-type { border-top:0; }
+.conn .pair { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+.conn .pct { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; min-width:52px; }
+.conn a { color:var(--accent); text-decoration:none; font-weight:600; font-size:14px; word-break:break-all; }
+.conn .sigs { display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:4px; font-size:13px; }
+.dom { padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+.dom:first-of-type { border-top:0; }
+.dom a { color:var(--accent); font-weight:600; word-break:break-all; }
+.dom .ev { color:var(--muted); font-size:12px; }
+
+.chg { display:grid; grid-template-columns:minmax(0,1fr); gap:2px; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+.chg:first-of-type { border-top:0; }
+.chg .what { font-weight:600; }
+.chg .ov { color:var(--muted); text-decoration:line-through; word-break:break-word; }
+.chg .nv { word-break:break-word; }
+.chg .when { color:var(--muted); font-size:12px; }
+
+/* evidence */
+.finding { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:0; }
+.finding > summary { list-style:none; cursor:pointer; display:flex; gap:10px; align-items:center; padding:10px 12px; flex-wrap:wrap; }
+.finding > summary::-webkit-details-marker { display:none; }
+.finding > summary .t { font-weight:600; min-width:0; overflow-wrap:anywhere; flex:1; }
+.finding .kind { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:0 6px; }
+.finding .body { padding:0 12px 12px; }
+.fmeta { display:grid; grid-template-columns:max-content 1fr; gap:3px 12px; font-size:13px; margin:0 0 8px; }
+.fmeta dt { color:var(--muted); } .fmeta dd { margin:0; word-break:break-word; } .fmeta a { color:var(--accent); }
+.evl { list-style:none; margin:0; padding:0; font-size:13px; display:flex; flex-direction:column; gap:3px; }
+.evl li { display:flex; gap:8px; } .evl li .ty { color:var(--muted); font-size:11px; min-width:70px; }
+.evl a { color:var(--accent); word-break:break-all; }
+.flist { display:flex; flex-direction:column; gap:6px; }
+
+/* graph */
+.gwrap { position:relative; height:560px; border:1px solid var(--line); border-radius:12px; background:var(--panel2); overflow:hidden; touch-action:none; }
+.gwrap svg { width:100%; height:100%; display:block; cursor:grab; user-select:none; }
+.gwrap svg.dragging { cursor:grabbing; }
+.gctl { position:absolute; right:10px; top:10px; display:flex; gap:4px; }
+.gctl button { width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--panel); cursor:pointer; color:var(--text); font-size:16px; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); margin-bottom:8px; }
+.legend i { display:inline-block; width:12px; height:12px; border-radius:3px; border:2px solid; vertical-align:-2px; margin-right:4px; }
+.gn rect { fill:var(--panel); stroke:var(--line); stroke-width:1.5; }
+.gn text { fill:var(--text); font-size:12px; pointer-events:none; }
+.gn { cursor:pointer; }
+.gn.username rect { stroke:var(--accent); } .gn.account rect { stroke:var(--ok); } .gn.account.linked rect { stroke:var(--link); }
+.gn.domain rect { stroke:var(--g-identity); } .gn.email rect { stroke:var(--warn); } .gn.lead rect { stroke:var(--muted); stroke-dasharray:3 2; }
+.gn.candidate rect { stroke-dasharray:4 3; }
+.gn.sel rect { stroke-width:3; fill:var(--accent-soft); }
+.ge { fill:none; stroke:var(--muted); stroke-width:1.4; opacity:.6; }
+.ge.similar { stroke:var(--warn); stroke-dasharray:5 4; } .ge.search { stroke:var(--accent); stroke-dasharray:2 4; }
+.ge.email { stroke:var(--warn); } .ge.links, .ge.website { stroke:var(--link); }
+svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08; } svg.focus .ge.near { opacity:1; stroke-width:2.2; }
+#nodeInfo:empty { display:none; }
+
+/* timeline */
+.tl { list-style:none; margin:0; padding:0 0 0 16px; border-left:2px solid var(--line); }
+.tl li { position:relative; padding:4px 0 12px 14px; }
+.tl li::before { content:""; position:absolute; left:-23px; top:9px; width:12px; height:12px; border-radius:50%; background:var(--accent); border:2px solid var(--panel); }
+.tl li.change::before { background:var(--warn); } .tl li.created::before { background:var(--ok); } .tl li.archived::before { background:var(--link); }
+.tl time { font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px; margin-right:6px; }
+.tl .k { font-size:11px; border:1px solid var(--line); border-radius:6px; padding:0 6px; color:var(--muted); }
+.tl .d { color:var(--muted); font-size:13px; word-break:break-word; }
+.tl a { color:var(--accent); text-decoration:none; font-weight:600; }
+
+.exports { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+.exports button { text-align:left; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:12px 14px; cursor:pointer; color:var(--text); }
+.exports button:hover { border-color:var(--accent); }
+.exports b { display:block; font-size:15px; } .exports span { font-size:12px; color:var(--muted); }
+
+@media (max-width:1100px) { .tiles { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:980px) {
   .layout.show { grid-template-columns:1fr; }
-  .side { position:static; order:-1; }
+  .side { position:static; }
 }
 @media (max-width:640px) {
   .stats { grid-template-columns:repeat(2,1fr); }
+  .tiles { grid-template-columns:repeat(2,1fr); }
   .search .btn.primary { width:100%; }
+  .gwrap { height:420px; }
+  .tabs button { padding:8px 10px; }
 }
 </style>
 </head>
@@ -90,7 +202,7 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 <main class="wrap">
   <section class="hero">
     <h1>ตามหาบัญชีจาก username</h1>
-    <p>ค้นบนเกือบ 100 เว็บพร้อมกัน ดึงข้อมูลโปรไฟล์ แล้วตามลิงก์ที่เจ้าของใส่ไว้ไปหา Instagram, Facebook, TikTok, X ของคนเดียวกัน พร้อมเทียบรูปโปรไฟล์</p>
+    <p>ค้นบนเกือบ 100 เว็บพร้อมกัน ลองชื่อใกล้เคียง ค้นต่อใน DuckDuckGo/Bing ตามลิงก์ที่เจ้าของใส่ไว้ไปหา Instagram, Facebook, TikTok, X แล้วรวมหลักฐานว่าบัญชีไหนน่าจะเป็นคนเดียวกัน พร้อมบอกว่าโปรไฟล์เปลี่ยนอะไรไปจากครั้งก่อน</p>
   </section>
 
   <form class="search" id="form" autocomplete="off">
@@ -105,14 +217,18 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
       <label>ค้นต่อจากบัญชีที่เจอ
         <select id="depth"><option value="0">ปิด</option><option value="1" selected>1 ชั้น</option><option value="2">2 ชั้น</option></select>
       </label>
-      <label><input type="checkbox" id="variants"> ลองชื่อใกล้เคียง</label>
+      <label title="ice4564 → ice_4564, ice.4564, ice4564_, ice4564x, ice4564th … ผลจะแยกจาก username ที่พิมพ์"><input type="checkbox" id="variants"> ลองชื่อใกล้เคียง</label>
+      <label title="ค้น &quot;username&quot; site:instagram.com ฯลฯ ใน DuckDuckGo (สำรองด้วย Bing)"><input type="checkbox" id="websearch" checked> ค้นใน search engine</label>
+      <label><input type="checkbox" id="followDomains" checked> ตามเว็บไซต์ส่วนตัว</label>
       <label><input type="checkbox" id="archive" checked> ค้น IG/FB/TikTok ใน archive.org</label>
       <label><input type="checkbox" id="avatars" checked> เทียบรูปโปรไฟล์</label>
+      <label title="ใช้คำตอบเดิมของเว็บที่เพิ่งตรวจไม่เกิน 6 ชั่วโมง ไม่ยิงเว็บเดิมซ้ำ"><input type="checkbox" id="cache" checked> ใช้ cache</label>
       <label>timeout
         <select id="timeout"><option>8</option><option selected>12</option><option>20</option><option>30</option></select> วิ
       </label>
       <span id="tagHint">หมวด: ทุกเว็บ</span>
     </div>
+    <div class="mutprev" id="mutPrev" hidden></div>
     <div class="tags" id="tags"></div>
   </form>
 
@@ -128,29 +244,122 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
     <div class="note" id="note"></div>
   </section>
 
+  <section class="dash" id="dash">
+    <div class="dash-top"><span class="target" id="dTarget"></span><span class="when" id="dWhen"></span></div>
+    <div class="tiles">
+      <button type="button" class="stat ok" data-go="accounts"><b id="dFound">0</b><span>บัญชีที่พบ</span></button>
+      <button type="button" class="stat link" data-go="overview"><b id="dLinked">–</b><span>บัญชีที่เชื่อมโยงกัน</span></button>
+      <button type="button" class="stat" data-go="evidence"><b id="dEvidence">–</b><span>หลักฐาน</span></button>
+      <button type="button" class="stat high" data-go="evidence" data-level="high"><b id="dHigh">–</b><span>ความมั่นใจสูง</span></button>
+      <button type="button" class="stat medium" data-go="evidence" data-level="medium"><b id="dMedium">–</b><span>ความมั่นใจกลาง</span></button>
+      <button type="button" class="stat" data-go="evidence" data-level="low"><b id="dLow">–</b><span>ความมั่นใจต่ำ</span></button>
+      <button type="button" class="stat warn" data-go="timeline"><b id="dChanges">–</b><span>โปรไฟล์เปลี่ยน</span></button>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" data-tab="overview" aria-selected="false">ภาพรวม</button>
+      <button type="button" role="tab" data-tab="accounts" aria-selected="true">บัญชี <span class="n" id="nAccounts">0</span></button>
+      <button type="button" role="tab" data-tab="graph" aria-selected="false">Identity Graph</button>
+      <button type="button" role="tab" data-tab="timeline" aria-selected="false">Timeline <span class="n" id="nTimeline">0</span></button>
+      <button type="button" role="tab" data-tab="evidence" aria-selected="false">หลักฐาน <span class="n" id="nEvidence">0</span></button>
+      <button type="button" role="tab" data-tab="export" aria-selected="false">Export รายงาน</button>
+    </div>
+  </section>
+
   <div class="layout" id="layout">
     <section>
-      <div class="panel" id="identity" hidden>
-        <h2>บัญชีที่น่าจะเป็นคนเดียวกัน</h2>
-        <p class="sub">สูง = เจ้าของลิงก์ไว้เอง / รูปเหมือนบัญชีที่ยืนยันแล้ว / คุณยืนยัน · กลาง = ชื่อจริงหรือรูปตรงกับบัญชีอื่น · ต่ำ = แค่ username ตรงกัน</p>
-        <div id="idList"></div>
+      <div class="tabpanel" data-panel="overview" hidden>
+        <div class="panel" id="clusters" hidden>
+          <h2>ตัวตนที่น่าจะเป็นคนเดียวกัน</h2>
+          <p class="sub">รวมบัญชีที่มีหลักฐานเชื่อมกัน: ลิงก์ถึงกัน, ชื่อ/bio/รูป/อีเมล/เว็บไซต์ตรงกัน · ตัวเลข = หลักฐานที่อ่อนที่สุดที่เชื่อมบัญชีในกลุ่ม</p>
+          <div id="clusterList"></div>
+        </div>
+        <div class="panel" id="identity" hidden>
+          <h2>คะแนนความเป็นตัวตนเดียวกัน (0–100)</h2>
+          <p class="sub">สูง ≥ 70 = เจ้าของลิงก์ไว้เอง / รูปเหมือนบัญชีที่ยืนยันแล้ว / หลายหลักฐานตรงกัน · กลาง ≥ 45 = ชื่อจริงหรือรูปตรงกับบัญชีอื่น · ต่ำ = แค่ username ตรงกัน</p>
+          <div id="idList"></div>
+        </div>
+        <div class="panel" id="changesPanel" hidden>
+          <h2>โปรไฟล์ที่เปลี่ยนไปจากครั้งก่อน</h2>
+          <p class="sub" id="changesSub"></p>
+          <div id="changeList"></div>
+        </div>
+        <div class="panel" id="connections" hidden>
+          <h2>ความเชื่อมโยงที่เป็นไปได้</h2>
+          <p class="sub">เทียบ username, ชื่อ, bio, เว็บไซต์, อีเมล, รูปโปรไฟล์ และที่อยู่ของบัญชีที่เจอทีละคู่ · เป็นแนวทางให้ตรวจต่อ ไม่ได้ยืนยันว่าเป็นคนเดียวกัน</p>
+          <div id="connList"></div>
+        </div>
+        <div class="panel" id="overviewEmpty"><p class="sub" style="margin:0">สรุปจะขึ้นเมื่อค้นเสร็จ</p></div>
       </div>
 
-      <div class="toolbar">
-        <div class="seg" id="seg">
-          <button type="button" data-f="found" aria-pressed="true">พบ</button>
-          <button type="button" data-f="manual" aria-pressed="false">ตรวจเอง</button>
-          <button type="button" data-f="unknown" aria-pressed="false">ตรวจไม่ได้</button>
-          <button type="button" data-f="not_found" aria-pressed="false">ไม่พบ</button>
-          <button type="button" data-f="all" aria-pressed="false">ทั้งหมด</button>
+      <div class="tabpanel" data-panel="accounts">
+        <div class="toolbar">
+          <div class="seg" id="seg">
+            <button type="button" data-f="found" aria-pressed="true">พบ</button>
+            <button type="button" data-f="candidate" aria-pressed="false" title="บัญชีของ username ที่ระบบเดา ไม่ใช่ที่คุณพิมพ์">ชื่อใกล้เคียง</button>
+            <button type="button" data-f="manual" aria-pressed="false">ตรวจเอง</button>
+            <button type="button" data-f="unknown" aria-pressed="false">ตรวจไม่ได้</button>
+            <button type="button" data-f="not_found" aria-pressed="false">ไม่พบ</button>
+            <button type="button" data-f="all" aria-pressed="false">ทั้งหมด</button>
+          </div>
+          <input class="filter" id="filter" placeholder="กรองชื่อเว็บ...">
         </div>
-        <input class="filter" id="filter" placeholder="กรองชื่อเว็บ...">
-        <span class="spacer"></span>
-        <button type="button" class="btn ghost" data-export="html">รายงาน HTML</button>
-        <button type="button" class="btn ghost" data-export="json">JSON</button>
-        <button type="button" class="btn ghost" data-export="csv">CSV</button>
+        <div class="grid" id="grid"></div>
       </div>
-      <div class="grid" id="grid"></div>
+
+      <div class="tabpanel" data-panel="graph" hidden>
+        <div class="panel">
+          <h2>Identity Graph</h2>
+          <p class="sub">ลากเพื่อเลื่อน · scroll เพื่อซูม · กดกล่องเพื่อดูหลักฐานของสิ่งนั้น</p>
+          <div class="legend">
+            <span><i style="border-color:var(--accent)"></i>username</span><span><i style="border-color:var(--ok)"></i>บัญชี</span>
+            <span><i style="border-color:var(--link)"></i>เจ้าของลิงก์ไว้</span><span><i style="border-color:var(--g-identity)"></i>เว็บไซต์</span>
+            <span><i style="border-color:var(--warn)"></i>อีเมล</span><span><i style="border-color:var(--muted);border-style:dashed"></i>เบาะแสจาก search</span>
+          </div>
+          <div class="gwrap" id="gwrap">
+            <div class="gctl"><button type="button" id="zIn" title="ซูมเข้า">+</button><button type="button" id="zOut" title="ซูมออก">−</button><button type="button" id="zFit" title="พอดีจอ">⤢</button></div>
+          </div>
+        </div>
+        <div id="nodeInfo"></div>
+      </div>
+
+      <div class="tabpanel" data-panel="timeline" hidden>
+        <div class="panel">
+          <h2>Timeline</h2>
+          <p class="sub">วันที่สร้างบัญชี, archive.org, ครั้งแรกที่ Sleuth เห็น และการเปลี่ยนแปลงของโปรไฟล์จากการค้นครั้งก่อน ๆ</p>
+          <ol class="tl" id="tlList"></ol>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="evidence" hidden>
+        <div class="toolbar">
+          <div class="seg" id="fKind">
+            <button type="button" data-k="all" aria-pressed="true">ทั้งหมด</button>
+            <button type="button" data-k="account" aria-pressed="false">บัญชี</button>
+            <button type="button" data-k="email" aria-pressed="false">อีเมล</button>
+            <button type="button" data-k="domain" aria-pressed="false">เว็บไซต์</button>
+            <button type="button" data-k="lead" aria-pressed="false">เบาะแส</button>
+          </div>
+          <select id="fLevel"><option value="">ทุกระดับ</option><option value="high">สูง</option><option value="medium">กลาง</option><option value="low">ต่ำ</option></select>
+          <input class="filter" id="fText" placeholder="ค้นในหลักฐาน...">
+        </div>
+        <div class="flist" id="fList"></div>
+      </div>
+
+      <div class="tabpanel" data-panel="export" hidden>
+        <div class="panel">
+          <h2>Export รายงาน</h2>
+          <p class="sub">รายงานมีภาพรวม, ตัวตน, หลักฐานทุกชิ้น (source / first seen / last checked / confidence), timeline, การเปลี่ยนแปลง และกราฟ</p>
+          <div class="exports">
+            <button type="button" data-export="html"><b>HTML</b><span>รายงานนักสืบ เปิดได้ทุกเบราว์เซอร์ กดกราฟไปที่หลักฐานได้</span></button>
+            <button type="button" data-export="pdf"><b>PDF</b><span>พิมพ์ด้วย Chrome/Edge บนเครื่อง (ภาษาไทยถูกต้อง)</span></button>
+            <button type="button" data-export="md"><b>Markdown</b><span>วางใน GitHub / Notion / Obsidian</span></button>
+            <button type="button" data-export="json"><b>JSON</b><span>ข้อมูลทั้งหมด เอาไปประมวลผลต่อ</span></button>
+            <button type="button" data-export="csv"><b>CSV</b><span>ตารางบัญชี เปิดใน Excel</span></button>
+            <button type="button" data-export="txt"><b>TXT</b><span>ข้อความล้วน</span></button>
+          </div>
+          <p class="note" id="exportNote"></p>
+        </div>
+      </div>
     </section>
 
     <aside class="side">
@@ -160,14 +369,24 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
         <div class="avatars" id="dAvatars"></div>
         <dl class="facts" id="dFacts"></dl>
       </div>
+      <div class="panel" id="hitsPanel" hidden>
+        <h2>เจอใน search engine</h2>
+        <p class="sub" id="hitsSub"></p>
+        <div id="hitList"></div>
+      </div>
       <div class="panel">
         <h2>ค้นต่อด้วย Google</h2>
-        <p class="sub">หาโพสต์หรือบัญชีที่ระบบตรวจตรงไม่ได้</p>
+        <p class="sub">Google ไม่อนุญาตให้ค้นอัตโนมัติ กดเปิดเองได้</p>
         <div class="dorks" id="dorks"></div>
       </div>
       <div class="panel" id="disc" hidden>
         <h2>username ที่เจอเพิ่ม</h2>
         <div id="discList"></div>
+      </div>
+      <div class="panel" id="domains" hidden>
+        <h2>เว็บไซต์ส่วนตัวที่ตามต่อ</h2>
+        <p class="sub">เว็บที่เจ้าของใส่ไว้ในโปรไฟล์ ระบบเปิดดูแล้วตามลิงก์โซเชียลและอีเมลต่อ</p>
+        <div id="domList"></div>
       </div>
     </aside>
   </div>
@@ -177,13 +396,24 @@ form.search { margin-top:18px; background:var(--panel); border:1px solid var(--l
 <script src="/static/common.js"></script>
 <script>
 const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
-                identity: [], showAllId: false, usernames: [] };
+                identity: [], showAllId: false, usernames: [], connections: [], domains: [], graph: null, queries: [],
+                clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
+                tab: "accounts", tabTouched: false, fKind: "all", selected: null, started: "" };
+const MARK = (ok) => (ok ? "✓" : ok === false ? "✗" : "·");
+const OKC = (ok) => (ok ? "y" : ok === false ? "n" : "u");
 const LABEL = { found: "พบ", not_found: "ไม่พบ", unknown: "ตรวจไม่ได้", manual: "ตรวจเอง" };
 const CONF = { high: "สูง", medium: "กลาง", low: "ต่ำ" };
+const KIND = { account: "บัญชี", email: "อีเมล", domain: "เว็บไซต์", lead: "เบาะแส", mention: "กล่าวถึง" };
+const EVTYPE = { origin: "ที่มา", check: "ตรวจหน้า", profile: "โปรไฟล์", email: "อีเมล", archive: "archive", search: "search",
+                 correlation: "เชื่อมโยง", link: "ลิงก์", note: "หมายเหตุ" };
+const TLKIND = { created: "สร้างบัญชี", archived: "archive.org", first_seen: "พบครั้งแรก", change: "เปลี่ยน", run: "ค้นหา" };
 const INFO_LABEL = { name: "ชื่อ", username: "username", bio: "bio", location: "ที่อยู่", website: "เว็บไซต์",
   created: "สมัครเมื่อ", followers: "ผู้ติดตาม", following: "กำลังติดตาม", twitter: "Twitter", github: "GitHub",
-  archived: "archive.org", archive_url: "หน้าที่เก็บไว้" };
+  archived: "archive.org", archive_url: "หน้าที่เก็บไว้", indexed: "อยู่ในผลค้นหา", indexed_url: "หน้าที่ค้นเจอ" };
 const key = (r) => (r.site + "|" + r.username).toLowerCase();
+const acctId = (site, user) => `acct:${site.toLowerCase()}/${user.toLowerCase()}`;
+const day = (s) => (s || "").slice(0, 16).replace("T", " ");
+const link = (url, text, attrs = {}) => safeUrl(url) ? el("a", { href: url, target: "_blank", rel: "noopener noreferrer", ...attrs }, text) : el("span", {}, text);
 
 async function init() {
   const r = await fetch("/api/sites").then((r) => r.json());
@@ -201,6 +431,28 @@ async function init() {
   }
 }
 
+// ---------- mutation preview ----------
+let mutTimer = null;
+function previewMutations() {
+  clearTimeout(mutTimer);
+  const u = $("u").value.trim().replace(/^@/, "").split(/[\s,]+/)[0];
+  if (!$("variants").checked || !u) { $("mutPrev").hidden = true; return; }
+  mutTimer = setTimeout(async () => {
+    const list = await fetch("/api/mutations?u=" + encodeURIComponent(u)).then((r) => r.json()).catch(() => []);
+    $("mutPrev").hidden = !list.length;
+    $("mutPrev").replaceChildren(`จะลองเพิ่ม ${list.length} ชื่อ: `, ...list.map((m) => el("span", { class: "chip", title: m.rule }, m.username)));
+  }, 250);
+}
+
+// ---------- tabs ----------
+function showTab(name, byUser = true) {
+  if (byUser) state.tabTouched = true;
+  state.tab = name;
+  for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === name);
+  for (const p of document.querySelectorAll(".tabpanel")) p.hidden = p.dataset.panel !== name;
+  if (name === "graph") renderGraph();
+}
+
 function setRunning(on) {
   $("go").textContent = on ? "หยุด" : "ค้นหา";
   $("go").classList.toggle("stop", on);
@@ -211,21 +463,30 @@ function stop(msg) {
   if (state.es) { state.es.close(); state.es = null; }
   setRunning(false);
   if (msg) $("note").textContent = msg;
-  renderIdentity(); renderDossier();
+  renderIdentity(); renderConnections(); renderDossier();
 }
 
 function start() {
   const u = $("u").value.trim();
   if (!u) return;
-  state.results = new Map(); state.total = 0; state.identity = []; state.showAllId = false;
+  Object.assign(state, { results: new Map(), total: 0, identity: [], showAllId: false, connections: [], domains: [],
+    graph: null, queries: [], clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
+    tabTouched: false, selected: null, started: new Date().toLocaleString("th-TH") });
   state.usernames = u.replace(/,/g, " ").split(/\s+/).filter(Boolean).map((x) => x.replace(/^@/, ""));
-  $("grid").replaceChildren(); $("discList").replaceChildren();
-  $("disc").hidden = true; $("identity").hidden = true;
-  $("status").classList.add("show"); $("layout").classList.add("show");
+  for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo"]) $(id).replaceChildren();
+  for (const id of ["disc", "identity", "connections", "domains", "clusters", "changesPanel", "hitsPanel"]) $(id).hidden = true;
+  $("overviewEmpty").hidden = false;
+  $("status").classList.add("show"); $("layout").classList.add("show"); $("dash").classList.add("show");
+  $("dTarget").textContent = "🔎 " + state.usernames.join(", ");
+  $("dWhen").textContent = state.started;
+  for (const id of ["dLinked", "dEvidence", "dHigh", "dMedium", "dLow", "dChanges"]) $(id).textContent = "–";
+  $("nTimeline").textContent = "0"; $("nEvidence").textContent = "0";
+  showTab("accounts", false);
   $("note").textContent = "กำลังเริ่ม...";
   renderDorks(); renderDossier(); updateStats();
   const p = new URLSearchParams({ u, depth: $("depth").value, timeout: $("timeout").value, tags: [...state.tags].join(","),
-    variants: $("variants").checked ? "1" : "0", archive: $("archive").checked ? "1" : "0", avatars: $("avatars").checked ? "1" : "0" });
+    variants: $("variants").checked ? "1" : "0", archive: $("archive").checked ? "1" : "0", avatars: $("avatars").checked ? "1" : "0",
+    domains: $("followDomains").checked ? "1" : "0", websearch: $("websearch").checked ? "1" : "0", cache: $("cache").checked ? "1" : "0" });
   const es = new EventSource("/api/search?" + p);
   state.es = es; setRunning(true);
   es.onmessage = (m) => handle(JSON.parse(m.data));
@@ -236,9 +497,16 @@ let dossierTimer = null;
 function handle(ev) {
   if (ev.type === "start") {
     state.total += ev.total;
-    $("note").textContent = ev.source ? `กำลังค้น ${ev.username} (จาก ${ev.source})` : `กำลังค้น ${ev.username} บน ${ev.total} เว็บ`;
+    $("note").textContent = ev.query === "candidate" ? `กำลังค้นชื่อใกล้เคียง ${ev.username} (เดาจาก ${ev.candidate_of})`
+      : ev.source ? `กำลังค้น ${ev.username} (จาก ${ev.source})` : `กำลังค้น ${ev.username} บน ${ev.total} เว็บ`;
+  } else if (ev.type === "domain") {
+    state.domains.push(ev);
+    renderDomains();
   } else if (ev.type === "progress") {
     $("note").textContent = ev.message;
+  } else if (ev.type === "search") {
+    state.search = ev;
+    renderHits();
   } else if (ev.type === "discovered") {
     $("disc").hidden = false;
     $("discList").append(el("span", { class: "chip", title: ev.source }, ev.username));
@@ -254,10 +522,17 @@ function handle(ev) {
     if (!dossierTimer) dossierTimer = setTimeout(() => { dossierTimer = null; renderDossier(); }, 600);
   } else if (ev.type === "done") {
     const s = ev.stats;
-    state.identity = ev.identity || [];
-    stop(`เสร็จใน ${ev.elapsed} วินาที · พบ ${s.found} บัญชี (เชื่อมโยงจากโปรไฟล์ ${s.linked}) จาก ${s.usernames} username`);
+    Object.assign(state, { identity: ev.identity || [], connections: ev.connections || [], domains: ev.domains || state.domains,
+      graph: ev.graph || null, queries: ev.queries || [], clusters: ev.clusters || [], findings: ev.findings || [],
+      timeline: ev.timeline || [], changes: ev.changes || [], search: ev.search || state.search, summary: ev.summary || null });
+    renderDomains(); renderHits(); renderClusters(); renderChanges(); renderTimeline(); renderFindings(); renderDashboard();
+    stop(`เสร็จใน ${ev.elapsed} วินาที · พบ ${s.found} บัญชี (เชื่อมโยงจากโปรไฟล์ ${s.linked}` +
+         (s.candidates_found ? `, จากชื่อใกล้เคียง ${s.candidates_found}` : "") + `) จาก ${s.usernames} username` +
+         (s.cached ? ` · ใช้ cache ${s.cached} เว็บ` : "") + (ev.run_id ? ` · บันทึกประวัติครั้งที่ #${ev.run_id}` : ""));
     $("bar").style.width = "100%";
     render();
+    if (!state.tabTouched) showTab("overview", false);
+    else if (state.tab === "graph") renderGraph();
   }
 }
 
@@ -266,14 +541,27 @@ function updateStats() {
   for (const r of state.results.values()) { c[r.status]++; if (r.linked && r.status === "found") c.linked++; }
   $("sFound").textContent = c.found; $("sNot").textContent = c.not_found;
   $("sManual").textContent = c.manual; $("sLinked").textContent = c.linked;
+  $("dFound").textContent = c.found; $("nAccounts").textContent = c.found;
   const n = [...state.results.values()].filter((r) => !r.linked).length;
   $("sDone").textContent = `${Math.min(n, state.total)}/${state.total || "?"}`;
   $("bar").style.width = state.total ? (100 * Math.min(n, state.total) / state.total) + "%" : "0";
 }
 
+function renderDashboard() {
+  const s = state.summary;
+  if (!s) return;
+  $("dFound").textContent = s.accounts_found; $("dLinked").textContent = s.linked_accounts;
+  $("dEvidence").textContent = s.evidence; $("dHigh").textContent = s.high; $("dMedium").textContent = s.medium;
+  $("dLow").textContent = s.low; $("dChanges").textContent = s.changes;
+  $("nTimeline").textContent = state.timeline.length; $("nEvidence").textContent = state.findings.length;
+}
+
 function matches(r) {
   if (r.status === "illegal") return false;
-  if (state.filter !== "all" && r.status !== state.filter) return false;
+  const cand = r.query === "candidate";
+  if (state.filter === "candidate") { if (!(cand && r.status === "found")) return false; }
+  else if (state.filter === "found") { if (r.status !== "found" || cand) return false; }
+  else if (state.filter !== "all" && r.status !== state.filter) return false;
   return !state.text || r.site.toLowerCase().includes(state.text) || r.username.toLowerCase().includes(state.text);
 }
 
@@ -281,9 +569,13 @@ function matches(r) {
 function confirmManual(r) {
   const c = { ...r, status: "found", linked: true, evidence: [...(r.evidence || []), "คุณเปิดตรวจและยืนยันเอง"], error: null };
   state.results.set(key(c), c);
-  state.identity = [{ site: c.site, username: c.username, url: c.url, confidence: "high", evidence: c.evidence, linked: true, depth: c.depth },
+  state.identity = [{ site: c.site, username: c.username, url: c.url, confidence: "high", score: 95, evidence: c.evidence, linked: true, depth: c.depth,
+                      signals: [{ label: "คุณยืนยันเอง", points: 95 }] },
                     ...state.identity.filter((i) => key(i) !== key(c))];
-  updateStats(); render(); renderIdentity(); renderDossier();
+  const f = state.findings.find((x) => x.id === acctId(c.site, c.username));
+  if (f) Object.assign(f, { kind: "account", title: `${c.site} @${c.username}`, confidence: 95, level: "high",
+    evidence: [...f.evidence, { type: "origin", text: "คุณเปิดตรวจและยืนยันเอง", ok: true }] });
+  updateStats(); render(); renderIdentity(); renderDossier(); renderFindings();
 }
 
 function card(r) {
@@ -297,11 +589,17 @@ function card(r) {
   const info = r.info || {};
   const badges = [el("span", { class: "badge " + r.status }, LABEL[r.status])];
   if (r.linked && r.status === "found") badges.unshift(el("span", { class: "badge linked" }, "เชื่อมโยง"));
+  if (r.query === "candidate") badges.push(el("span", { class: "badge cand", title: "username ที่ระบบเดา ไม่ใช่ที่คุณพิมพ์" }, `ชื่อใกล้เคียง ← ${r.candidate_of}`));
+  else if (r.query === "discovered" && !r.linked && r.status === "found") badges.push(el("span", { class: "badge disc" }, "เจอจากโปรไฟล์"));
   if (info.archived && r.status === "manual") badges.push(el("span", { class: "badge archive" }, "มีใน archive"));
+  if (info.indexed && r.status === "manual") badges.push(el("span", { class: "badge archive" }, "อยู่ใน " + info.indexed));
+  if (r.cached) badges.push(el("span", { class: "badge cache", title: "คำตอบจาก cache (ตรวจเมื่อ " + day(r.checked_at) + ")" }, "cache"));
   const title = el("h3", {}, r.site, ...badges);
-  const link = el("a", { class: "url", href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer" }, r.url);
-  const cls = "card" + (r.status === "found" ? "" : " compact") + (r.linked ? " is-linked" : "") + (info.archived && r.status === "manual" ? " has-archive" : "");
-  const c = el("article", { class: cls, "data-key": key(r) }, el("div", { class: "head" }, ico, el("div", { style: "min-width:0" }, title, link)));
+  const a = el("a", { class: "url", href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer" }, r.url);
+  const hint = info.archived || info.indexed;
+  const cls = "card" + (r.status === "found" ? "" : " compact") + (r.linked ? " is-linked" : "") + (hint && r.status === "manual" ? " has-archive" : "")
+    + (r.query === "candidate" ? " is-candidate" : "");
+  const c = el("article", { class: cls, "data-key": key(r) }, el("div", { class: "head" }, ico, el("div", { style: "min-width:0" }, title, a)));
 
   if (r.status === "found") {
     const dl = el("dl");
@@ -316,13 +614,21 @@ function card(r) {
       av.onerror = () => av.remove();
       c.append(av);
     }
-    if (r.linked) c.append(el("div", { class: "evidence" }, "↳ " + (r.evidence || []).join(" · ")));
+    if (r.linked || (r.query && r.query !== "input")) c.append(el("div", { class: "evidence" }, "↳ " + (r.evidence || []).join(" · ")));
+    if ((r.checks || []).length) c.append(el("div", { class: "checks" }, ...r.checks.map((x) =>
+      el("span", { class: "ck " + OKC(x.ok), title: x.detail }, `${MARK(x.ok)} ${x.check}`))));
     c.append(el("div", { class: "who" }, `@${r.username} · ${(r.tags || []).map((t) => "#" + t).join(" ")}${r.depth ? " · ชั้น " + r.depth : ""}`));
     if (dl.children.length) c.append(dl);
     if ((r.discovered || []).length) c.append(el("div", { class: "who" }, "ลิงก์ไปยัง: " + r.discovered.join(", ")));
+    if (state.findings.length) {
+      const ev = el("button", { type: "button", class: "btn ghost small", style: "margin-top:10px" }, "ดูหลักฐาน");
+      ev.onclick = () => openFinding(acctId(r.site, r.username));
+      c.append(ev);
+    }
   } else if (r.status === "manual") {
-    c.append(el("div", { class: info.archived ? "hint" : "err" },
+    c.append(el("div", { class: hint ? "hint" : "err" },
       info.archived ? `archive.org เคยเก็บหน้าโปรไฟล์ @${r.username} ไว้ (ล่าสุด ${info.archived}) น่าจะมีบัญชีจริง`
+      : info.indexed ? `${info.indexed} มีหน้าโปรไฟล์ @${r.username} ในผลค้นหา น่าจะมีบัญชีจริง`
                     : `@${r.username} · ${r.site} บล็อกการตรวจอัตโนมัติ เปิดลิงก์เพื่อดูเอง`));
     const ok = el("button", { type: "button", class: "btn small ok" }, "✓ เจอแล้ว");
     ok.onclick = () => confirmManual(r);
@@ -339,24 +645,26 @@ function card(r) {
 }
 
 function render() {
-  const rank = (r) => (r.linked ? 0 : 1) + (r.status === "manual" && !(r.info || {}).archived ? 1 : 0);
+  const rank = (r) => (r.linked ? 0 : 1) + (r.status === "manual" && !(r.info || {}).archived && !(r.info || {}).indexed ? 1 : 0);
   const items = [...state.results.values()].filter(matches)
     .sort((a, b) => rank(a) - rank(b) || (a.depth - b.depth) || a.site.localeCompare(b.site));
   $("grid").replaceChildren(...items.map(card));
   if (!items.length) $("grid").append(el("div", { class: "empty" }, state.es ? "กำลังค้นหา..." : "ไม่มีผลลัพธ์ในหมวดนี้"));
 }
 
+// ---------- overview ----------
 function renderIdentity() {
   const list = state.identity;
   if (!list.length) return;
-  $("identity").hidden = false;
+  $("identity").hidden = false; $("overviewEmpty").hidden = true;
   const strong = list.filter((i) => i.confidence !== "low");
   const shown = state.showAllId ? list : (strong.length ? strong : list.slice(0, 8));
   const rows = shown.map((i) => el("div", { class: "idrow" },
-    el("span", { class: "conf " + i.confidence }, CONF[i.confidence]),
+    el("span", { class: "score " + i.confidence, title: CONF[i.confidence] }, i.score ?? CONF[i.confidence]),
     el("div", { class: "t" },
       el("a", { href: safeUrl(i.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${i.site} · @${i.username}`),
-      el("div", { class: "ev" }, i.evidence.join(" · ")))));
+      i.query === "candidate" ? el("span", { class: "badge cand", style: "margin-left:6px" }, "ชื่อใกล้เคียง") : "",
+      el("div", { class: "ev" }, (i.signals || []).map((s) => `${s.label} +${s.points}`).join(" · ") || i.evidence.join(" · ")))));
   const box = $("idList");
   box.replaceChildren(...rows);
   if (shown.length < list.length) {
@@ -366,6 +674,261 @@ function renderIdentity() {
   }
 }
 
+function renderClusters() {
+  const list = state.clusters;
+  $("clusters").hidden = !list.length;
+  if (list.length) $("overviewEmpty").hidden = true;
+  $("clusterList").replaceChildren(...list.map((c) => el("div", { class: "cluster" },
+    el("div", { class: "head" }, el("span", { class: "pct" }, c.confidence + "%"),
+      el("b", {}, c.usernames.map((u) => "@" + u).join(" · ")),
+      c.names.length ? el("span", { class: "sub", style: "margin:0" }, "ชื่อ: " + c.names.join(", ")) : ""),
+    el("div", { class: "accts" }, ...c.accounts.map((a) => {
+      const b = el("a", { href: "#", title: "ดูในกราฟ" }, `${a.site} @${a.username}` + (a.score != null ? ` · ${a.score}` : ""));
+      b.onclick = (e) => { e.preventDefault(); showTab("graph"); selectNode(a.id); };
+      return b;
+    })),
+    el("div", { class: "why" }, "เพราะ: " + c.reasons.slice(0, 6).join(" · ")))));
+}
+
+function renderConnections() {
+  const list = state.connections;
+  $("connections").hidden = !list.length;
+  const acct = (x) => el("a", { href: safeUrl(x.url) || "#", target: "_blank", rel: "noopener noreferrer" }, `${x.site} @${x.username}`);
+  $("connList").replaceChildren(...list.slice(0, 15).map((c) => el("div", { class: "conn" },
+    el("div", { class: "pair" }, el("span", { class: "pct" }, c.confidence + "%"), acct(c.a), el("span", {}, "↔"), acct(c.b)),
+    el("div", { class: "sigs" }, ...c.signals.map((s) =>
+      el("span", { class: "sig " + OKC(s.ok), title: s.detail || "" }, `${MARK(s.ok)} ${s.label}`))))));
+}
+
+async function renderChanges() {
+  const list = state.changes;
+  const FIELD_VERB = { added: "เพิ่ม", removed: "ลบ", changed: "เปลี่ยน" };
+  $("changeList").replaceChildren(...list.map((c) => el("div", { class: "chg" },
+    el("div", {}, link(c.url, `${c.site} @${c.username}`, { style: "font-weight:600" }), " · ",
+      el("span", { class: "what" }, `${FIELD_VERB[c.kind] || "เปลี่ยน"}${c.label || c.field}`),
+      c.delta ? el("span", { class: "score " + (c.delta > 0 ? "medium" : "") , style: "margin-left:6px" }, (c.delta > 0 ? "+" : "") + c.delta.toLocaleString()) : ""),
+    c.field === "avatar" ? el("div", { class: "nv" }, c.note || "รูปโปรไฟล์เปลี่ยน") :
+      el("div", {}, el("span", { class: "ov" }, c.old || "—"), " → ", el("span", { class: "nv" }, c.new || "—")),
+    el("div", { class: "when" }, `${day(c.old_seen)} → ${day(c.detected_at)}`))));
+  $("changesPanel").hidden = !list.length;
+  // how many earlier runs this comparison is based on
+  try {
+    const h = await fetch("/api/history?u=" + encodeURIComponent(state.usernames.join(" "))).then((r) => r.json());
+    if (!h.enabled) return;
+    const n = h.runs.length;
+    $("changesSub").textContent = n > 1 ? `เทียบกับการค้นครั้งก่อน (ค้นชื่อนี้มาแล้ว ${n} ครั้ง)` : "ครั้งแรกที่ค้นชื่อนี้ ครั้งหน้าจะเทียบให้ว่าอะไรเปลี่ยน";
+    if (!list.length && n <= 1) { $("changesPanel").hidden = false; $("changeList").replaceChildren(); }
+  } catch (e) { /* history is optional */ }
+}
+
+function renderDomains() {
+  const list = state.domains;
+  $("domains").hidden = !list.length;
+  $("domList").replaceChildren(...list.map((d) => el("div", { class: "dom" },
+    el("a", { href: safeUrl(d.url) || "#", target: "_blank", rel: "noopener noreferrer" }, d.domain),
+    el("div", { class: "ev" }, `จาก ${d.source}` + (d.status !== "ok" ? ` · ${d.error || d.status}` : "")),
+    d.note ? el("div", { class: "ev", style: d.personal ? "color:var(--ok)" : "color:var(--warn)" }, d.note) : "",
+    (d.emails || []).length ? el("div", { class: "ev" }, "อีเมล: " + d.emails.join(", ")) : "",
+    (d.found_links || []).length ? el("div", {}, ...d.found_links.map((x) => el("span", { class: "chip" }, x)))
+                                 : el("div", { class: "ev" }, d.status === "ok" ? "ไม่มีลิงก์โปรไฟล์" : ""))));
+}
+
+function renderHits() {
+  const s = state.search;
+  if (!s || !s.engines) return;
+  $("hitsPanel").hidden = false;
+  const relevant = (s.hits || []).filter((h) => h.mentions || h.same_handle);
+  const eng = s.engines.map((e) => el("span", { class: "eng" + (e.blocked ? " blocked" : ""), title: (e.errors || []).join("; ") }, e.name + (e.blocked ? " ถูกบล็อก" : "")));
+  $("hitsSub").replaceChildren(`${(s.queries || []).length} คำค้น · ${relevant.length} หน้าที่กล่าวถึง `, ...eng);
+  $("hitList").replaceChildren(...relevant.slice(0, 12).map((h) => el("div", { class: "hit" },
+    link(h.url, h.title || h.url), h.platform ? el("span", { class: "eng", style: "margin-left:6px" }, h.platform) : "",
+    el("div", { class: "s" }, h.snippet || h.url), el("div", { class: "s" }, `${h.engine} · ${h.query}`))));
+  if (!relevant.length) $("hitList").append(el("div", { class: "s", style: "color:var(--muted);font-size:13px" }, "ไม่พบหน้าที่กล่าวถึง username"));
+}
+
+// ---------- evidence ----------
+function findingEl(f, open = false) {
+  const d = el("details", { class: "finding", "data-id": f.id });
+  if (open) d.open = true;
+  d.append(el("summary", {}, el("span", { class: "score " + f.level }, f.confidence), el("span", { class: "kind" }, KIND[f.kind] || f.kind),
+    el("span", { class: "t" }, f.title)));
+  const meta = el("dl", { class: "fmeta" },
+    el("dt", {}, "Source"), el("dd", {}, f.source),
+    el("dt", {}, "URL"), el("dd", {}, link(f.url, f.url)),
+    el("dt", {}, "First seen"), el("dd", {}, day(f.first_seen) || "—"),
+    el("dt", {}, "Last checked"), el("dd", {}, (day(f.last_checked) || "—") + (f.cached ? " (cache)" : "")),
+    el("dt", {}, "Confidence"), el("dd", {}, `${f.confidence}/100 (${CONF[f.level] || f.level})`));
+  const items = el("ul", { class: "evl" }, ...f.evidence.map((e) => el("li", {},
+    el("span", { class: "ty" }, EVTYPE[e.type] || e.type),
+    el("span", { class: OKC(e.ok) }, MARK(e.ok)), e.url ? link(e.url, e.text) : el("span", {}, e.text))));
+  d.append(el("div", { class: "body" }, meta, items));
+  return d;
+}
+
+function renderFindings() {
+  const kind = state.fKind, lvl = $("fLevel").value, q = $("fText").value.trim().toLowerCase();
+  const list = state.findings.filter((f) => (kind === "all" || f.kind === kind || (kind === "lead" && f.kind === "mention"))
+    && (!lvl || f.level === lvl)
+    && (!q || (f.title + " " + f.source + " " + f.evidence.map((e) => e.text).join(" ")).toLowerCase().includes(q)));
+  $("fList").replaceChildren(...list.map((f) => findingEl(f)));
+  if (!list.length) $("fList").append(el("div", { class: "empty" }, state.findings.length ? "ไม่มีหลักฐานที่ตรงกับตัวกรอง" : "หลักฐานจะขึ้นเมื่อค้นเสร็จ"));
+}
+
+function openFinding(id) {
+  state.fKind = "all"; $("fLevel").value = ""; $("fText").value = "";
+  [...$("fKind").children].forEach((x) => x.setAttribute("aria-pressed", x.dataset.k === "all"));
+  showTab("evidence"); renderFindings();
+  const d = document.querySelector(`.finding[data-id="${CSS.escape(id)}"]`);
+  if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "center" }); }
+}
+
+// ---------- timeline ----------
+function renderTimeline() {
+  const list = [...state.timeline].reverse();
+  $("tlList").replaceChildren(...list.map((t) => el("li", { class: t.kind },
+    el("time", {}, day(t.date)), el("span", { class: "k" }, TLKIND[t.kind] || t.kind), " ",
+    t.url ? link(t.url, t.title) : el("b", {}, t.title),
+    t.detail ? el("div", { class: "d" }, t.detail) : "")));
+  if (!list.length) $("tlList").append(el("li", {}, el("span", { class: "d" }, "ยังไม่มีเหตุการณ์ที่มีวันที่")));
+}
+
+// ---------- interactive graph ----------
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}, ...kids) {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) n.setAttribute(k, v);
+  for (const k of kids) n.append(k);
+  return n;
+}
+const G = { svg: null, vp: null, view: { x: 0, y: 0, k: 1 }, pos: new Map(), size: [0, 0], nodes: new Map(), edges: [] };
+const BOX_W = 200, BOX_H = 26, COL_W = 250, ROW_H = 38;
+
+function layout(graph) {
+  const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
+  const edges = graph.edges.filter((e) => nodes.has(e.source) && nodes.has(e.target));
+  const level = new Map();
+  for (const n of graph.nodes) if (n.type === "username" && n.query === "input") level.set(n.id, 0);
+  const flow = edges.filter((e) => e.kind !== "similar");
+  for (let i = 0; i < nodes.size; i++) {
+    let changed = false;
+    for (const e of flow) {
+      if (level.has(e.source) && (level.get(e.target) ?? 1e9) > level.get(e.source) + 1) { level.set(e.target, level.get(e.source) + 1); changed = true; }
+    }
+    if (!changed) break;
+  }
+  const cols = [];
+  for (const [id, c] of level) (cols[c] = cols[c] || []).push(id);
+  const row = new Map();
+  cols.forEach((ids, c) => {
+    if (c === 0) ids.sort();
+    else {
+      // barycentre of the nodes that lead here keeps related boxes side by side
+      const bc = (id) => { const ps = flow.filter((e) => e.target === id && row.has(e.source)).map((e) => row.get(e.source)); return ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : 1e6; };
+      ids.sort((a, b) => bc(a) - bc(b) || nodes.get(a).label.localeCompare(nodes.get(b).label));
+    }
+    ids.forEach((id, i) => row.set(id, i));
+  });
+  // a level with dozens of accounts is wrapped into several sub-columns so the graph stays readable
+  const ROWS_MAX = 12;
+  const tallest = Math.max(1, ...cols.map((c) => Math.min(ROWS_MAX, (c || []).length)));
+  const pos = new Map();
+  let x = 20;
+  cols.forEach((ids) => {
+    ids = ids || [];
+    const subcols = Math.max(1, Math.ceil(ids.length / ROWS_MAX));
+    const rows = Math.ceil(ids.length / subcols);
+    const off = (tallest - rows) * ROW_H / 2;
+    ids.forEach((id, i) => pos.set(id, [x + Math.floor(i / rows) * (BOX_W + 24), 20 + off + (i % rows) * ROW_H]));
+    x += subcols * (BOX_W + 24) + (COL_W - BOX_W - 24);
+  });
+  return { nodes, edges: edges.filter((e) => pos.has(e.source) && pos.has(e.target)), pos,
+           size: [x + 20, 40 + tallest * ROW_H] };
+}
+
+function renderGraph() {
+  const box = $("gwrap");
+  box.querySelector("svg")?.remove();
+  if (!state.graph || !state.graph.edges.length) {
+    if (!box.querySelector(".empty")) box.append(el("div", { class: "empty" }, state.es ? "กราฟจะขึ้นเมื่อค้นเสร็จ" : "ยังไม่มีความเชื่อมโยงให้แสดง"));
+    return;
+  }
+  box.querySelector(".empty")?.remove();
+  const L = layout(state.graph);
+  Object.assign(G, { pos: L.pos, size: L.size, nodes: L.nodes, edges: L.edges });
+  const vp = svgEl("g");
+  for (const e of L.edges) {
+    const [x1, y1] = L.pos.get(e.source), [x2, y2] = L.pos.get(e.target);
+    const sy = y1 + BOX_H / 2, ty = y2 + BOX_H / 2;
+    let d;
+    if (x2 <= x1) { const sx = x1 + BOX_W, tx = x2 + BOX_W; d = `M${sx},${sy} C${sx + 40},${sy} ${tx + 40},${ty} ${tx},${ty}`; }
+    else { const sx = x1 + BOX_W, tx = x2, m = (sx + tx) / 2; d = `M${sx},${sy} C${m},${sy} ${m},${ty} ${tx},${ty}`; }
+    vp.append(svgEl("path", { class: "ge " + e.kind, d, "data-s": e.source, "data-t": e.target }, svgEl("title", {}, e.label)));
+  }
+  const ICON = { username: "@", domain: "🌐 ", email: "✉ ", lead: "? " };
+  for (const [id, [x, y]] of L.pos) {
+    const n = L.nodes.get(id);
+    const label = (ICON[n.type] || "") + n.label;
+    const g = svgEl("g", { class: `gn ${n.type}${n.linked ? " linked" : ""}${n.query === "candidate" ? " candidate" : ""}`, "data-id": id, transform: `translate(${x},${y})` },
+      svgEl("rect", { width: BOX_W, height: BOX_H, rx: 6 }),
+      svgEl("text", { x: 9, y: 17 }, label.length > 30 ? label.slice(0, 29) + "…" : label),
+      svgEl("title", {}, label));
+    g.addEventListener("click", (ev) => { ev.stopPropagation(); selectNode(id); });
+    vp.append(g);
+  }
+  const svg = svgEl("svg", { "aria-label": "Identity graph" }, vp);
+  box.prepend(svg);
+  G.svg = svg; G.vp = vp;
+  fitGraph();
+  // pan / zoom
+  let drag = null;
+  svg.addEventListener("pointerdown", (e) => { if (e.target.closest(".gn")) return; drag = { x: e.clientX, y: e.clientY, vx: G.view.x, vy: G.view.y }; svg.classList.add("dragging"); svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointermove", (e) => { if (!drag) return; G.view.x = drag.vx + e.clientX - drag.x; G.view.y = drag.vy + e.clientY - drag.y; applyView(); });
+  const end = () => { if (drag && Math.abs(G.view.x - drag.vx) + Math.abs(G.view.y - drag.vy) < 3) clearSelection(); drag = null; svg.classList.remove("dragging"); };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("wheel", (e) => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  if (state.selected && L.pos.has(state.selected)) selectNode(state.selected, false);
+}
+function applyView() { if (G.vp) G.vp.setAttribute("transform", `translate(${G.view.x},${G.view.y}) scale(${G.view.k})`); }
+function zoomAt(f, cx, cy) {
+  const k = Math.max(0.2, Math.min(3, G.view.k * f));
+  G.view.x = cx - (cx - G.view.x) * (k / G.view.k); G.view.y = cy - (cy - G.view.y) * (k / G.view.k); G.view.k = k; applyView();
+}
+function fitGraph() {
+  if (!G.svg) return;
+  const r = G.svg.getBoundingClientRect(), [w, h] = G.size;
+  const k = Math.max(0.2, Math.min(1.2, (r.width - 20) / w, (r.height - 20) / h));
+  G.view = { k, x: (r.width - w * k) / 2, y: Math.max(10, (r.height - h * k) / 2) }; applyView();
+}
+function clearSelection() {
+  state.selected = null;
+  G.svg?.classList.remove("focus");
+  G.svg?.querySelectorAll(".sel, .near").forEach((n) => n.classList.remove("sel", "near"));
+  $("nodeInfo").replaceChildren();
+}
+function selectNode(id, scroll = true) {
+  if (!G.svg || !G.pos.has(id)) { if (state.graph) { state.selected = id; } return; }
+  clearSelection();
+  state.selected = id;
+  const near = new Set([id]);
+  G.svg.querySelectorAll(".ge").forEach((p) => {
+    if (p.dataset.s === id || p.dataset.t === id) { p.classList.add("near"); near.add(p.dataset.s); near.add(p.dataset.t); }
+  });
+  G.svg.querySelectorAll(".gn").forEach((g) => { if (near.has(g.dataset.id)) g.classList.add("near"); if (g.dataset.id === id) g.classList.add("sel"); });
+  G.svg.classList.add("focus");
+  const n = G.nodes.get(id);
+  const f = state.findings.find((x) => x.id === id);
+  const info = $("nodeInfo");
+  if (f) info.replaceChildren(findingEl(f, true));
+  else if (n.type === "username") {
+    const accts = [...state.results.values()].filter((r) => r.status === "found" && r.username.toLowerCase() === n.label.toLowerCase());
+    const q = state.queries.find((x) => x.username.toLowerCase() === n.label.toLowerCase()) || {};
+    info.replaceChildren(el("div", { class: "panel" }, el("h2", {}, "@" + n.label),
+      el("p", { class: "sub" }, q.query === "input" ? "username ที่คุณพิมพ์" : q.query === "candidate" ? `ชื่อใกล้เคียงที่ระบบเดา: ${q.rule || ""}` : `เจอจาก ${q.source || q.why || "โปรไฟล์อื่น"}`),
+      el("div", {}, `พบ ${accts.length} บัญชี: `, ...accts.map((r) => el("span", { class: "chip" }, r.site)))));
+  } else info.replaceChildren(el("div", { class: "panel" }, el("h2", {}, n.label), el("p", { class: "sub" }, "ไม่มีหลักฐานเพิ่มเติม")));
+  if (scroll && window.innerWidth < 980) info.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 // ---------- dossier: what the found accounts say about the person ----------
 function renderDossier() {
   const found = [...state.results.values()].filter((r) => r.status === "found");
@@ -373,7 +936,7 @@ function renderDossier() {
   found.forEach((r) => { if (r.linked) confident.add(key(r)); });
   let pool = found.filter((r) => confident.has(key(r)));
   const usingConfident = pool.length >= 2;
-  if (!usingConfident) pool = found.filter((r) => r.depth === 0);
+  if (!usingConfident) pool = found.filter((r) => r.depth === 0 && r.query !== "candidate");
   $("dossierSub").textContent = !found.length ? "ยังไม่มีข้อมูล"
     : usingConfident ? `รวบรวมจาก ${pool.length} บัญชีที่ความมั่นใจกลาง-สูง`
     : `รวบรวมจาก ${pool.length} บัญชีที่ username ตรงกัน (อาจปนคนอื่น)`;
@@ -386,9 +949,9 @@ function renderDossier() {
   }
   $("dAvatars").replaceChildren(...avatars.map(([a, r]) => {
     const img = el("img", { src: a, alt: r.site, loading: "lazy", referrerpolicy: "no-referrer" });
-    const link = el("a", { href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer", title: `${r.site} · @${r.username}` }, img);
-    img.onerror = () => link.remove();
-    return link;
+    const l = el("a", { href: safeUrl(r.url) || "#", target: "_blank", rel: "noopener noreferrer", title: `${r.site} · @${r.username}` }, img);
+    img.onerror = () => l.remove();
+    return l;
   }));
 
   const count = (vals) => {
@@ -402,6 +965,7 @@ function renderDossier() {
   const created = pool.map((r) => [(r.info || {}).created, r]).filter(([d]) => /^\d{4}-\d{2}-\d{2}/.test(d || "")).sort((a, b) => a[0].localeCompare(b[0]));
   const tags = count(pool.flatMap((r) => r.tags || []));
   const platforms = pool.filter((r) => r.linked).map((r) => `${r.site} @${r.username}`);
+  const emails = state.findings.filter((f) => f.kind === "email" && f.level !== "low").map((f) => [f.title, 1]);
 
   const facts = $("dFacts");
   facts.replaceChildren();
@@ -409,6 +973,7 @@ function renderDossier() {
   const chips = (arr) => { const d = el("div"); arr.slice(0, 8).forEach(([v, n]) => d.append(el("span", { class: "chip" }, n > 1 ? `${v} ×${n}` : v))); return d; };
   if (names.length) add("ชื่อที่ใช้", chips(names));
   if (platforms.length) add("โซเชียลที่เชื่อมโยง", chips(platforms.map((p) => [p, 1])));
+  if (emails.length) add("อีเมล", chips(emails));
   if (places.length) add("ที่อยู่", chips(places));
   if (sites.length) { const d = el("div"); sites.slice(0, 5).forEach(([u]) => d.append(el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, u)))); add("เว็บไซต์ส่วนตัว", d); }
   if (created.length) add("บัญชีเก่าสุด", `${created[0][0].slice(0, 10)} (${created[0][1].site})`);
@@ -428,6 +993,7 @@ function renderDorks() {
     ["Facebook", `"${u}" site:facebook.com`],
     ["TikTok", `"${u}" site:tiktok.com`],
     ["X / Twitter", `"${u}" (site:x.com OR site:twitter.com)`],
+    ["GitHub", `"${u}" site:github.com`],
     ["YouTube", `"${u}" site:youtube.com`],
     ["Reddit", `"${u}" site:reddit.com`],
     ["Pantip", `"${u}" site:pantip.com`],
@@ -438,15 +1004,34 @@ function renderDorks() {
     box.append(el("a", { class: "btn ghost small", href: q(query), target: "_blank", rel: "noopener noreferrer", title: query }, label));
 }
 
-async function exportAs(fmt) {
-  if (!state.results.size) return;
-  const res = await fetch("/api/report/" + fmt, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ results: [...state.results.values()].filter((r) => r.status !== "illegal"), identity: state.identity }) });
-  const blob = await res.blob();
-  const name = (res.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/)?.[1] || "sleuth." + fmt;
+// ---------- export ----------
+function reportBody() {
+  return JSON.stringify({ usernames: state.usernames, results: [...state.results.values()].filter((r) => r.status !== "illegal"),
+    identity: state.identity, connections: state.connections, clusters: state.clusters, domains: state.domains, graph: state.graph,
+    queries: state.queries, findings: state.findings, timeline: state.timeline, changes: state.changes,
+    search: state.search ? { hits: state.search.hits || [], engines: state.search.engines || [] } : {}, summary: state.summary });
+}
+function download(blob, name) {
   const a = el("a", { href: URL.createObjectURL(blob), download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function exportAs(fmt) {
+  if (!state.results.size) { $("exportNote").textContent = "ยังไม่มีผลให้ export"; return; }
+  $("exportNote").textContent = fmt === "pdf" ? "กำลังสร้าง PDF..." : "";
+  const post = (f) => fetch("/api/report/" + f, { method: "POST", headers: { "Content-Type": "application/json" }, body: reportBody() });
+  let res = await post(fmt);
+  if (fmt === "pdf" && !res.ok) {
+    // no Chrome/Edge on the server machine: print the HTML report from this browser instead
+    const html = await post("html").then((r) => r.text());
+    const w = window.open(URL.createObjectURL(new Blob([html], { type: "text/html" })));
+    if (w) w.addEventListener("load", () => w.print());
+    $("exportNote").textContent = "เปิดรายงานในแท็บใหม่แล้ว เลือก \"Save as PDF\" ในหน้าต่างพิมพ์";
+    return;
+  }
+  const name = (res.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/)?.[1] || "sleuth." + fmt;
+  download(await res.blob(), name);
+  if (fmt === "pdf") $("exportNote").textContent = "ดาวน์โหลด PDF แล้ว";
 }
 
 $("form").onsubmit = (e) => { e.preventDefault(); state.es ? stop("หยุดแล้ว") : start(); };
@@ -457,6 +1042,24 @@ $("seg").onclick = (e) => {
   render();
 };
 $("filter").oninput = (e) => { state.text = e.target.value.trim().toLowerCase(); render(); };
+$("tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) showTab(b.dataset.tab); };
+document.querySelectorAll(".tiles .stat").forEach((b) => (b.onclick = () => {
+  if (b.dataset.level) { state.fKind = "all"; [...$("fKind").children].forEach((x) => x.setAttribute("aria-pressed", x.dataset.k === "all")); $("fLevel").value = b.dataset.level; renderFindings(); }
+  showTab(b.dataset.go);
+}));
+$("fKind").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.fKind = b.dataset.k;
+  [...$("fKind").children].forEach((x) => x.setAttribute("aria-pressed", x === b));
+  renderFindings();
+};
+$("fLevel").onchange = renderFindings;
+$("fText").oninput = renderFindings;
+$("zIn").onclick = () => { const r = G.svg?.getBoundingClientRect(); if (r) zoomAt(1.25, r.width / 2, r.height / 2); };
+$("zOut").onclick = () => { const r = G.svg?.getBoundingClientRect(); if (r) zoomAt(0.8, r.width / 2, r.height / 2); };
+$("zFit").onclick = fitGraph;
+$("u").addEventListener("input", previewMutations);
+$("variants").addEventListener("change", previewMutations);
 document.querySelectorAll("[data-export]").forEach((b) => (b.onclick = () => exportAs(b.dataset.export)));
 init();
 </script>

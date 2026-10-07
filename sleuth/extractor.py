@@ -148,7 +148,7 @@ def _walk_json(obj: Any, info: dict[str, str], links: list[str], depth: int = 0)
 
 
 def _external(links: list[str], base_url: str) -> list[str]:
-    base_host = _host(base_url)
+    base_host = _host(base_url, keep_port=True)
     out: list[str] = []
     seen: set[str] = set()
     for link in links:
@@ -157,7 +157,7 @@ def _external(links: list[str], base_url: str) -> list[str]:
             link = "https:" + link
         if not link.startswith("http"):
             continue
-        host = _host(link)
+        host = _host(link, keep_port=True)
         if not host or host == base_host or host.endswith("." + base_host):
             continue
         if re.search(r"\.(png|jpe?g|gif|svg|webp|css|js|woff2?|ico)(\?|$)", link, re.I):
@@ -169,8 +169,9 @@ def _external(links: list[str], base_url: str) -> list[str]:
     return out[:60]
 
 
-def _host(url: str) -> str:
-    host = urlparse(url).netloc.lower().split(":")[0]
+def _host(url: str, keep_port: bool = False) -> str:
+    host = urlparse(url).netloc.lower()
+    host = host if keep_port else host.split(":")[0]
     return host[4:] if host.startswith("www.") else host
 
 
