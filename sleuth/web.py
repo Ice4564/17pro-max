@@ -124,7 +124,7 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
                 "domains": dicts("domains"), "queries": dicts("queries"), "findings": dicts("findings"),
                 "timeline": dicts("timeline"), "changes": dicts("changes"), "summary": obj("summary"),
                 "entities": dicts("entities"), "contradictions": dicts("contradictions"), "plan": dicts("plan"),
-                "replay": dicts("replay"),
+                "replay": dicts("replay"), "intel": obj("intel"),
                 "search": {"hits": [h for h in search_data.get("hits", []) if isinstance(h, dict)],
                            "engines": [e for e in search_data.get("engines", []) if isinstance(e, dict)]},
                 "graph": {"nodes": [n for n in graph.get("nodes", []) if isinstance(n, dict)],
@@ -140,6 +140,18 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
                 raise web.HTTPNotImplemented(text=str(e))
             return web.Response(body=pdf, headers={"Content-Type": "application/pdf",
                                                     "Content-Disposition": f'attachment; filename="sleuth_{names}.pdf"'})
+        if fmt == "xlsx":
+            try:
+                data_bytes = report.to_xlsx(results, meta)
+            except RuntimeError as e:  # openpyxl missing
+                raise web.HTTPNotImplemented(text=str(e))
+            if not isinstance(data_bytes, bytes):  # openpyxl missing: fell back to CSV text
+                return web.Response(body=("﻿" + data_bytes).encode("utf-8"),
+                                    headers={"Content-Type": "text/csv; charset=utf-8",
+                                             "Content-Disposition": f'attachment; filename="sleuth_{names}.csv"'})
+            return web.Response(body=data_bytes, headers={
+                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Content-Disposition": f'attachment; filename="sleuth_{names}.xlsx"'})
         body = report.render(fmt, results, meta)
         ctype = {"html": "text/html", "json": "application/json", "csv": "text/csv", "txt": "text/plain",
                  "md": "text/markdown"}[fmt]

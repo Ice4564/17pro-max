@@ -523,7 +523,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
 const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
                 identity: [], showAllId: false, usernames: [], connections: [], domains: [], graph: null, queries: [],
                 clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
-                entities: [], contradictions: [], plan: [], replay: [], runId: null, options: {},
+                entities: [], contradictions: [], plan: [], replay: [], intel: null, runId: null, options: {},
                 tab: "accounts", tabTouched: false, fKind: "all", selected: null, started: "" };
 const RISK = { LOW: "เสี่ยงผิดคนต่ำ", MEDIUM: "เสี่ยงผิดคนกลาง", HIGH: "เสี่ยงผิดคนสูง" };
 const REL = { HIGH: "แหล่งน่าเชื่อถือสูง", MEDIUM: "แหล่งน่าเชื่อถือกลาง", LOW: "แหล่งน่าเชื่อถือต่ำ" };
@@ -601,7 +601,7 @@ function start() {
   if (!u) return;
   Object.assign(state, { results: new Map(), total: 0, identity: [], showAllId: false, connections: [], domains: [],
     graph: null, queries: [], clusters: [], findings: [], timeline: [], changes: [], search: null, summary: null,
-    entities: [], contradictions: [], plan: [], replay: [], runId: null,
+    entities: [], contradictions: [], plan: [], replay: [], intel: null, runId: null,
     tabTouched: false, selected: null, started: new Date().toLocaleString("th-TH") });
   state.usernames = u.replace(/,/g, " ").split(/\s+/).filter(Boolean).map((x) => x.replace(/^@/, ""));
   for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo", "replayList", "planList", "contraList"]) $(id).replaceChildren();
@@ -662,7 +662,7 @@ function handle(ev) {
       graph: ev.graph || null, queries: ev.queries || [], clusters: ev.clusters || [], findings: ev.findings || [],
       timeline: ev.timeline || [], changes: ev.changes || [], search: ev.search || state.search, summary: ev.summary || null,
       entities: ev.entities || [], contradictions: ev.contradictions || [], plan: ev.plan || [],
-      replay: ev.replay || state.replay, runId: ev.run_id || null, options: ev.options || {} });
+      replay: ev.replay || state.replay, intel: ev.intel || null, runId: ev.run_id || null, options: ev.options || {} });
     renderDomains(); renderHits(); renderClusters(); renderChanges(); renderTimeline(); renderFindings(); renderDashboard();
     renderContradictions(); renderPlan(); renderReplay();
     assistantDone(ev);
@@ -1215,6 +1215,22 @@ function renderDossier() {
   if (sites.length) { const d = el("div"); sites.slice(0, 5).forEach(([u]) => d.append(el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, u)))); add("เว็บไซต์ส่วนตัว", d); }
   if (created.length) add("บัญชีเก่าสุด", `${created[0][0].slice(0, 10)} (${created[0][1].site})`);
   if (tags.length) add("ใช้งานด้าน", chips(tags.slice(0, 6).map(([t, n]) => ["#" + t, n])));
+  const intel = state.intel;
+  if (intel) {
+    if ((intel.languages || []).length) add("ภาษาที่ใช้", chips(intel.languages.map((x) => [x.lang, x.count])));
+    if ((intel.crypto || []).length) { const d = el("div"); intel.crypto.forEach((c) => d.append(el("div", {}, el("span", { class: "chip", title: c.sources.join(", ") }, `${c.type.toUpperCase()}: ${c.value}`)))); add("คริปโต/ENS", d); }
+    if ((intel.phones || []).length) add("เบอร์โทร (ไทย)", chips(intel.phones.map((p) => [p.number, 1])));
+    if ((intel.bots || []).length) { const d = el("div"); intel.bots.forEach((b) => d.append(el("div", { class: "who", title: b.signals.join("; ") }, `${b.site} @${b.username}: ${b.label} (${b.score})`))); add("สัญญาณบอต", d); }
+    if ((intel.images || []).length) {
+      const d = el("div");
+      intel.images.slice(0, 8).forEach((im) => {
+        const row = el("div", { style: "font-size:12px;margin-top:4px" }, `${im.site}: `);
+        Object.entries(im.reverse).forEach(([name, url], i) => { if (i) row.append(" · "); row.append(el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, name)); });
+        d.append(row);
+      });
+      add("ค้นรูปซ้ำ", d);
+    }
+  }
   if (!facts.children.length) facts.append(el("dd", { style: "color:var(--muted)" }, "ยังไม่มีข้อมูลโปรไฟล์"));
 }
 
@@ -1247,7 +1263,7 @@ function reportBody() {
     identity: state.identity, connections: state.connections, clusters: state.clusters, domains: state.domains, graph: state.graph,
     queries: state.queries, findings: state.findings, timeline: state.timeline, changes: state.changes,
     search: state.search ? { hits: state.search.hits || [], engines: state.search.engines || [] } : {}, summary: state.summary,
-    entities: state.entities, contradictions: state.contradictions, plan: state.plan, replay: state.replay });
+    entities: state.entities, contradictions: state.contradictions, plan: state.plan, replay: state.replay, intel: state.intel });
 }
 function download(blob, name) {
   const a = el("a", { href: URL.createObjectURL(blob), download: name });

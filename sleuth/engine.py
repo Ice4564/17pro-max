@@ -25,6 +25,7 @@ from .evidence import account_id, build_findings, build_graph, build_timeline, d
 from . import contradictions as contra
 from .identity import clusters as identity_clusters, entities as find_entities, handle_core
 from .linker import apply_contradictions, find_social, identity_summary, match_social
+from .enrich import enrich, intel_counts
 from .planner import plan as make_plan
 from .mutations import mutations, numbered
 from .similarity import JUNK_HOSTS, connections as find_connections, emails_in_text
@@ -455,6 +456,7 @@ class Searcher:
         self.contradictions: list[dict[str, Any]] = []
         self.entities: list[dict[str, Any]] = []
         self.plan: list[dict[str, Any]] = []
+        self.intel: dict[str, Any] = {}  # languages, avatars/reverse-search, crypto, phones, bot scores
         self.replay: list[dict[str, Any]] = []  # what the engine did, in order (investigation replay)
         self._replay_sent = 0
         self._t0 = time.perf_counter()
@@ -904,16 +906,22 @@ class Searcher:
                               search=self.search, contradictions=self.contradictions, skipped=self.skipped,
                               options=options)
         self._log("วางแผนขั้นต่อไป", f"แนะนำ {len(self.plan)} ขั้น" + (f": {self.plan[0]['title']}" if self.plan else ""))
+        confident = {(i["site"].lower(), i["username"].lower()) for i in self.identity if i["confidence"] != "low"}
+        confident |= {(r["site"].lower(), r["username"].lower()) for r in dicts if r.get("linked")}
+        self.intel = enrich(dicts, confident or None)
+        c = intel_counts(self.intel)
+        if any(c.values()):
+            self._log("วิเคราะห์โปรไฟล์", ", ".join(f"{k} {v}" for k, v in c.items() if v))
         self.summary = summary(usernames, dicts, self.identity, self.findings, self.clusters, self.changes,
                                hits, self.domains)
         self.summary.update(contradictions=len(self.contradictions), entities=len(self.entities),
                             fp_high=sum(1 for i in self.identity if i.get("fp_risk") == "HIGH"),
-                            next_steps=len(self.plan))
+                            next_steps=len(self.plan), **c)
         for ev in self._drain():
             yield ev
         done = {"type": "done", "stats": self.stats(), "identity": self.identity,
                 "connections": self.connections, "clusters": self.clusters, "entities": self.entities,
-                "contradictions": self.contradictions, "plan": self.plan, "replay": self.replay,
+                "contradictions": self.contradictions, "plan": self.plan, "replay": self.replay, "intel": self.intel,
                 "domains": self.domains, "graph": self.graph, "queries": list(self.queries.values()),
                 "findings": self.findings, "timeline": self.timeline, "changes": self.changes, "search": self.search,
                 "summary": self.summary, "run_id": self.run_id, "started": run_started, "usernames": usernames,

@@ -213,7 +213,8 @@ def test_watch_run_reports_only_changes(tmp_path):
     assert first[0]["changes"] == [] and [c["field"] for c in second[0]["changes"]] == ["bio"]
     assert len(alerts) == 1
     replay = run["payload"]["done"]["replay"]
-    assert [x["action"] for x in replay][:2] == ["ค้น username", "พบบัญชี"] and replay[-1]["action"] == "วางแผนขั้นต่อไป"
+    actions = [x["action"] for x in replay]
+    assert actions[:2] == ["ค้น username", "พบบัญชี"] and "วางแผนขั้นต่อไป" in actions
 
 
 # ---- web API -------------------------------------------------------------------------------------------

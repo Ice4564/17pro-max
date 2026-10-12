@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  sleuth:
+    build: .
+    ports:
+      - "8787:8787"
+    volumes:
+      - sleuth-data:/root/.sleuth
+    environment:
+      - SLEUTH_WEB_HOST=0.0.0.0
+      - SLEUTH_WEB_PORT=8787
+    restart: unless-stopped
+
+volumes:
+  sleuth-data:

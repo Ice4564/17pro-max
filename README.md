@@ -128,7 +128,7 @@ python -m sleuth torvalds -f all
 | `--watch-run` | ตรวจรายการที่ถึงเวลาหนึ่งรอบ (ตั้งใน Task Scheduler ได้ถ้าอยากให้ตรวจแม้ไม่ได้เปิดเว็บ) |
 | `--no-domains` / `--max-domains 5` | ปิด / จำกัดการตามเว็บไซต์ส่วนตัวที่เจอในโปรไฟล์ |
 | `-a` | แสดงผล "ไม่พบ" และ "ตรวจไม่ได้" ด้วย |
-| `-f html,md,pdf` หรือ `-f all` | บันทึกรายงาน `txt`, `csv`, `json`, `md`, `html`, `pdf` (ลงโฟลเดอร์ `reports/`, PDF ต้องมี Chrome หรือ Edge ในเครื่อง) |
+| `-f html,md,pdf,xlsx` หรือ `-f all` | บันทึกรายงาน `txt`, `csv`, `json`, `md`, `html`, `pdf`, `xlsx` (ลงโฟลเดอร์ `reports/`; PDF ต้องมี Chrome/Edge, xlsx ต้องมี `openpyxl`) |
 | `--timeout 20` | เวลารอต่อเว็บ (วินาที) |
 | `--proxy http://127.0.0.1:8080` | ใช้ proxy |
 | `--tor` | ผ่าน Tor (ต้อง `pip install aiohttp-socks` และเปิด Tor ไว้) |
@@ -268,6 +268,20 @@ False-positive risk: LOW
 - หน้าที่กล่าวถึง username → เก็บเป็นหลักฐาน "กล่าวถึง" พร้อม engine, คำค้น, อันดับ และข้อความตัวอย่าง
 
 Google ไม่อนุญาตให้ค้นอัตโนมัติ จึงมีแค่ปุ่มให้กดเปิดเอง
+
+## วิเคราะห์โปรไฟล์ (Enrichment)
+
+หลังค้นเสร็จ ระบบวิเคราะห์เพิ่มจากข้อมูลสาธารณะที่ดึงมาแล้ว **โดยไม่ยิงเว็บเพิ่ม** ([enrich.py](sleuth/enrich.py)) แสดงในแฟ้มบุคคลและรายงาน:
+
+- **ภาษาที่ใช้** ในโปรไฟล์ (ไทย/อังกฤษ/จีน/ญี่ปุ่น/เกาหลี ฯลฯ)
+- **ค้นรูปโปรไฟล์ซ้ำ** — ลิงก์ Google Lens, TinEye, Yandex, Bing (ข้ามรูป default)
+- **คริปโต/ENS** — `.eth` และ address `0x...` ที่พบในโปรไฟล์
+- **เบอร์โทรไทย** ที่ระบุไว้ (normalize + บอกค่าย/ภูมิภาค)
+- **สัญญาณบอต** — heuristic จาก username, bio, สัดส่วนผู้ติดตาม, อายุบัญชี (เฉพาะที่น่าสงสัย)
+
+โมดูล [analysis.py](sleuth/analysis.py), [regional.py](sleuth/regional.py), [imaging.py](sleuth/imaging.py), [crypto.py](sleuth/crypto.py) ใช้เดี่ยว ๆ ได้ด้วย และมี Docker ([Dockerfile](Dockerfile)) + CI (GitHub Actions)
+
+> รุ่นนี้ตั้งใจ**ไม่รวม** ชุดหลบการตรวจจับ (proxy rotation/หลบ WAF/CAPTCHA), การค้นฐานข้อมูลข้อมูลรั่ว และการตรวจเลขบัตรประชาชน เพื่อให้อยู่ในขอบเขตการใช้งานอย่างรับผิดชอบ
 
 ## ติดตามการเปลี่ยนแปลงของโปรไฟล์ + cache
 

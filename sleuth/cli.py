@@ -170,7 +170,13 @@ CONF_LABEL = {"high": "สูง", "medium": "กลาง", "low": "ต่ำ"}
 
 def _formats(value: str) -> list[str]:
     if value == "all":
-        return list(report.FORMATS) + (["pdf"] if report.find_browser() else [])
+        extra = (["pdf"] if report.find_browser() else [])
+        try:
+            import openpyxl  # noqa: F401
+            extra.append("xlsx")
+        except ImportError:
+            pass
+        return list(report.FORMATS) + extra
     return [f.strip().lower() for f in value.split(",") if f.strip()]
 
 
@@ -330,7 +336,8 @@ async def _run_search(args: argparse.Namespace, sites, all_sites, history) -> in
                 "queries": list(searcher.queries.values()), "graph": searcher.graph, "clusters": searcher.clusters,
                 "findings": searcher.findings, "timeline": searcher.timeline, "changes": searcher.changes,
                 "search": searcher.search, "summary": searcher.summary, "entities": searcher.entities,
-                "contradictions": searcher.contradictions, "plan": searcher.plan, "replay": searcher.replay}
+                "contradictions": searcher.contradictions, "plan": searcher.plan, "replay": searcher.replay,
+                "intel": searcher.intel}
         for fmt in formats:
             if fmt not in report.ALL_FORMATS:
                 print(C.red(f"unknown format: {fmt}"))

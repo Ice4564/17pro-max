@@ -18,13 +18,15 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
+from dataclasses import dataclass, field
 from datetime import datetime
 from html import escape
 from pathlib import Path
 from typing import Any
 
 FORMATS = ("txt", "csv", "json", "md", "html")  # text formats render() produces
-ALL_FORMATS = FORMATS + ("pdf",)  # pdf needs a local Chrome / Edge (see to_pdf)
+ALL_FORMATS = FORMATS + ("pdf", "xlsx")  # pdf needs a local Chrome/Edge; xlsx needs openpyxl
 
 
 def _found(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -184,6 +186,23 @@ def to_md(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> 
         out += ["## Next searches", ""]
         out += [f"{x['n']}. **{_md(x['title'])}** ({PRIO_TH.get(x['priority'], x['priority'])}) — {_md(x['why'])}" for x in plan]
         out.append("")
+    intel = meta.get("intel") or {}
+    if any(intel.get(k) for k in ("languages", "images", "crypto", "phones", "bots")):
+        out += ["## ข้อมูลเพิ่มเติม (จากโปรไฟล์)", ""]
+        if intel.get("languages"):
+            out.append("- ภาษาที่ใช้: " + ", ".join(f"{x['lang']} ({x['count']})" for x in intel["languages"]))
+        for c in intel.get("crypto", []):
+            out.append(f"- {c['type'].upper()}: `{_md(c['value'])}` — {_md(', '.join(c['sources'][:4]))}")
+        for ph in intel.get("phones", []):
+            out.append(f"- เบอร์โทร: {_md(ph['number'])} — {_md(', '.join(ph['sources'][:4]))}")
+        for b in intel.get("bots", []):
+            out.append(f"- {_md(b['site'])} @{_md(b['username'])}: {b['label']} ({b['score']}/100) — {_md('; '.join(b['signals'][:3]))}")
+        if intel.get("images"):
+            out += ["", "### ค้นรูปโปรไฟล์ซ้ำ (reverse image search)"]
+            for im in intel["images"][:10]:
+                links = " · ".join(f"[{name}]({url})" for name, url in im["reverse"].items())
+                out.append(f"- {_md(im['site'])} @{_md(im['username'])}: {links}")
+        out.append("")
     clusters = [] if entities else meta.get("clusters") or []
     if clusters:
         out += ["## ตัวตนที่น่าจะเป็นคนเดียวกัน", ""]
@@ -303,6 +322,29 @@ def to_html(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -
     plan_html = "".join(
         f'<li><span class="prio {escape(x["priority"])}">{PRIO_TH.get(x["priority"], x["priority"])}</span> '
         f'<b>{escape(x["title"])}</b><br><small>{escape(x["why"])}</small></li>' for x in plan)
+    intel = meta.get("intel") or {}
+    has_intel = any(intel.get(k) for k in ("languages", "images", "crypto", "phones", "bots"))
+    intel_html = ""
+    if has_intel:
+        rows = []
+        if intel.get("languages"):
+            rows.append("<p><b>ภาษาที่ใช้:</b> " + escape(", ".join(f"{x['lang']} ({x['count']})" for x in intel["languages"])) + "</p>")
+        for c in intel.get("crypto", []):
+            rows.append(f'<p><b>{escape(c["type"].upper())}:</b> <code>{escape(c["value"])}</code> '
+                        f'<small>{escape(", ".join(c["sources"][:4]))}</small></p>')
+        for ph in intel.get("phones", []):
+            rows.append(f'<p><b>เบอร์โทร:</b> {escape(ph["number"])} <small>{escape(", ".join(ph["sources"][:4]))}</small></p>')
+        for b in intel.get("bots", []):
+            rows.append(f'<p><b>{escape(b["site"])} @{escape(b["username"])}:</b> {escape(b["label"])} ({b["score"]}/100) '
+                        f'<small>{escape("; ".join(b["signals"][:3]))}</small></p>')
+        if intel.get("images"):
+            imgs = "".join(
+                f'<tr><td>{escape(im["site"])} @{escape(im["username"])}</td><td>'
+                + " · ".join(f'<a href="{escape(u)}" target="_blank" rel="noopener noreferrer">{escape(n)}</a>'
+                             for n, u in im["reverse"].items()) + "</td></tr>"
+                for im in intel["images"][:12])
+            rows.append('<table><tr><th>บัญชี</th><th>ค้นรูปซ้ำ (reverse image search)</th></tr>' + imgs + "</table>")
+        intel_html = "".join(rows)
     replay = meta.get("replay") or []
     replay_rows = "".join(
         f'<tr><td>+{escape(str(x["s"]))}s</td><td>{escape(x["action"])}</td><td>{escape(x["detail"])}</td></tr>'
@@ -409,7 +451,9 @@ def to_html(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -
 <title>Sleuth Report</title>
 <style>
 :root {{ --bg:#f6f7f9; --panel:#fff; --text:#16181d; --muted:#5d6472; --line:#e3e6eb; --accent:#2f6fed; --ok:#14804a; --warn:#b45309; --bad:#c2410c; --link:#7a3fd1; --high:#c0262d; --medium:#a85a06; }}
-@media (prefers-color-scheme: dark) {{ :root {{ --bg:#0f1115; --panel:#171a21; --text:#e8eaef; --muted:#9aa3b2; --line:#272c36; --accent:#6f9bff; --ok:#3ccf83; --warn:#f0a44b; --bad:#f2865e; --link:#b48cff; --high:#ff7b84; --medium:#f2a54a; }} }}
+@media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]) {{ --bg:#0f1115; --panel:#171a21; --text:#e8eaef; --muted:#9aa3b2; --line:#272c36; --accent:#6f9bff; --ok:#3ccf83; --warn:#f0a44b; --bad:#f2865e; --link:#b48cff; --high:#ff7b84; --medium:#f2a54a; }} }}
+[data-theme="dark"] {{ --bg:#0f1115; --panel:#171a21; --text:#e8eaef; --muted:#9aa3b2; --line:#272c36; --accent:#6f9bff; --ok:#3ccf83; --warn:#f0a44b; --bad:#f2865e; --link:#b48cff; --high:#ff7b84; --medium:#f2a54a; }}
+#theme-toggle {{ position:fixed; top:16px; right:16px; z-index:999; background:var(--panel); border:1px solid var(--line); border-radius:99px; padding:6px 14px; cursor:pointer; font-size:14px; color:var(--text); }}
 * {{ box-sizing:border-box; }}
 body {{ margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans Thai",sans-serif; }}
 main {{ max-width:1100px; margin:0 auto; padding:32px 16px 64px; }}
@@ -492,6 +536,16 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
 .graph .n rect {{ fill:var(--bg); stroke:var(--line); }} .graph .n.username rect {{ stroke:var(--accent); }}
 .graph .n.domain rect {{ stroke:#7a3fd1; }} .graph .n.candidate rect {{ stroke:var(--warn); stroke-dasharray:3 2; }}
 .graph .n.email rect {{ stroke:var(--ok); }} .graph .n.lead rect {{ stroke:var(--muted); stroke-dasharray:2 2; }}
+@media (max-width:640px) {{
+  main {{ padding:16px 8px 48px; }}
+  .grid {{ grid-template-columns:1fr; }}
+  .stats {{ grid-template-columns:repeat(2,1fr); }}
+  table {{ font-size:12px; }}
+  td,th {{ padding:6px 8px; }}
+  .conn ul {{ columns:1; }}
+  h1 {{ font-size:22px; }} h2 {{ font-size:16px; }}
+  #theme-toggle {{ top:8px; right:8px; padding:4px 10px; font-size:12px; }}
+}}
 @media print {{
   body {{ background:#fff; color:#000; font-size:12px; }}
   main {{ max-width:none; padding:0; }}
@@ -504,6 +558,7 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
 </style>
 </head>
 <body>
+<button id="theme-toggle" onclick="var d=document.documentElement;var c=d.getAttribute('data-theme');d.setAttribute('data-theme',c==='dark'?'light':'dark');localStorage.setItem('sleuth-theme',d.getAttribute('data-theme'));">🌓 Toggle theme</button>
 <main>
   <h1>Sleuth Report</h1>
   <p class="sub">เป้าหมาย: <b>{escape(', '.join(targets))}</b> · username ที่ค้นทั้งหมด {len(usernames)} ชื่อ · {escape(when)}</p>
@@ -511,6 +566,7 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
   {'<section class="warnbox"><h2>⚠ Contradictory evidence detected</h2><p class="note" style="margin:0 0 6px">Do not treat these profiles as confirmed identity. อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน</p>' + contra_html + '</section>' if contra_html else ''}
   <nav class="toc">{''.join(f'<a href="#{a}">{t}</a>' for a, t, ok in (
       ("identities", "ตัวตน", clusters or entities), ("plan", "Next searches", plan), ("evidence", "หลักฐาน", findings),
+      ("enrichment", "ข้อมูลเพิ่มเติม", has_intel),
       ("graph", "Identity Graph", graph_svg), ("replay", "Replay", replay),
       ("timeline", "Timeline", timeline), ("changes", "การเปลี่ยนแปลง", changes), ("search", "Search engine", hits),
       ("accounts", "บัญชีทั้งหมด", True)) if ok)}</nav>
@@ -518,6 +574,7 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
   {'<h2 id="identities">Entity resolution: ตัวตนที่เป็นไปได้</h2><p class="note">username ที่เป็นชื่อเดียวกันในรูปแบบต่าง ๆ รวมกับกลุ่มที่มีหลักฐานเชื่อมกัน · กลุ่มที่มีแค่ชื่อคล้ายกันได้คะแนนไม่เกิน 40</p>' + entity_html if entity_html else ''}
   {'<h2>บัญชีที่น่าจะเป็นของเป้าหมาย (ที่มาของคะแนน)</h2>' + identity_html if identity_html else ''}
   {'<h2 id="plan">Next searches</h2><p class="note">ขั้นต่อไปที่ระบบแนะนำจากหลักฐานที่เจอ</p><ol class="plan">' + plan_html + '</ol>' if plan_html else ''}
+  {'<h2 id="enrichment">ข้อมูลเพิ่มเติม (จากโปรไฟล์)</h2><p class="note">วิเคราะห์จากข้อมูลสาธารณะที่ดึงมาแล้ว ไม่ได้ยิงเว็บเพิ่ม</p>' + intel_html if has_intel else ''}
   {'<h2>ความเชื่อมโยงที่เป็นไปได้ (Possible connections)</h2><p class="note">เทียบข้อมูลสาธารณะของบัญชีที่เจอทีละคู่ คะแนนสูงแปลว่าควรตรวจต่อ ไม่ได้ยืนยันว่าเป็นคนเดียวกัน</p>' + conn_html if conn_html else ''}
   {'<h2 id="evidence">หลักฐาน (Findings)</h2><p class="note">แต่ละรายการบอกว่าเจอจากอะไร (Source) หลักฐานที่รองรับ เห็นครั้งแรกเมื่อไร ตรวจล่าสุดเมื่อไร และความมั่นใจ 0–100</p>' + findings_html if findings_html else ''}
   {'<h2 id="graph">Identity Graph</h2><p class="note">username → บัญชี → ลิงก์/เว็บไซต์ → อีเมล/บัญชีถัดไป · เส้นประส้ม = อาจเชื่อมโยงกัน · เส้นประฟ้า = จาก search engine · กดกล่องเพื่อไปที่หลักฐาน</p><div class="graph">' + graph_svg + '</div>' if graph_svg else ''}
@@ -674,6 +731,12 @@ def render(fmt: str, results: list[dict[str, Any]], meta: dict[str, Any] | None 
         return to_md(results, meta)
     if fmt == "html":
         return to_html(results, meta)
+    if fmt == "xlsx":
+        data = to_xlsx(results, meta)
+        if isinstance(data, bytes):
+            import base64
+            return base64.b64encode(data).decode("ascii")  # caller should use write() for binary
+        return data
     raise ValueError(f"unknown format {fmt!r}")
 
 
@@ -682,6 +745,466 @@ def write(fmt: str, results: list[dict[str, Any]], path: Path, meta: dict[str, A
     if fmt == "pdf":
         path.write_bytes(to_pdf(to_html(results, meta)))
         return path
+    if fmt == "xlsx":
+        data = to_xlsx(results, meta)
+        if isinstance(data, bytes):
+            path.write_bytes(data)
+        else:
+            path.write_text(data, encoding="utf-8")
+        return path
     # utf-8-sig for CSV so Excel shows Thai text correctly
     path.write_text(render(fmt, results, meta), encoding="utf-8-sig" if fmt == "csv" else "utf-8")
     return path
+
+
+def to_xlsx(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> bytes:
+    """Export results as an Excel workbook with multiple sheets.
+
+    Requires openpyxl: pip install openpyxl
+    Falls back to CSV if openpyxl is not installed.
+    """
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        # Fallback: return CSV as bytes
+        return to_csv(results, meta).encode("utf-8-sig")
+
+    meta = meta or {}
+    wb = Workbook()
+
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill("solid", fgColor="2F6FED")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin")
+    )
+
+    # Sheet 1: Accounts found
+    ws1 = wb.active
+    ws1.title = "Accounts"
+    headers = ["Username", "Site", "Status", "URL", "Confidence", "Name", "Bio", "Location", "Tags", "HTTP Status", "Checked At"]
+    ws1.append(headers)
+    for cell in ws1[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    for r in sorted(results, key=lambda r: (r["username"].lower(), r["status"] != "found", r["site"].lower())):
+        info = r.get("info", {})
+        ws1.append([
+            r["username"], r["site"], r["status"], r["url"],
+            meta.get("findings", [{}])[0].get("confidence", "") if meta.get("findings") else "",
+            info.get("name", ""), info.get("bio", ""), info.get("location", ""),
+            " ".join(r.get("tags", [])), r.get("http_status", ""), r.get("checked_at", ""),
+        ])
+
+    # Color-code status column
+    for row in ws1.iter_rows(min_row=2):
+        for cell in row:
+            cell.border = thin_border
+        status_cell = row[2]
+        if status_cell.value == "found":
+            status_cell.fill = PatternFill("solid", fgColor="C6EFCE")
+            status_cell.font = Font(color="006100")
+        elif status_cell.value == "not found":
+            status_cell.fill = PatternFill("solid", fgColor="FFC7CE")
+            status_cell.font = Font(color="9C0006")
+        elif status_cell.value == "manual":
+            status_cell.fill = PatternFill("solid", fgColor="FFEB9C")
+            status_cell.font = Font(color="9C6500")
+
+    # Auto-width
+    for col in range(1, len(headers) + 1):
+        ws1.column_dimensions[get_column_letter(col)].width = 20
+
+    # Sheet 2: Identity clusters
+    clusters = meta.get("clusters") or meta.get("entities") or []
+    if clusters:
+        ws2 = wb.create_sheet("Identities")
+        ws2.append(["Confidence", "Usernames", "Sites", "Reasons"])
+        for cell in ws2[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        for c in clusters:
+            accounts = c.get("accounts", [])
+            usernames = ", ".join(a.get("username", "") for a in accounts)
+            sites = ", ".join(a.get("site", "") for a in accounts)
+            reasons = "; ".join(c.get("reasons", [])[:5])
+            ws2.append([c.get("confidence", 0), usernames, sites, reasons])
+
+        for col in range(1, 5):
+            ws2.column_dimensions[get_column_letter(col)].width = 30
+
+    # Sheet 3: Findings (evidence)
+    findings = meta.get("findings") or []
+    if findings:
+        ws3 = wb.create_sheet("Findings")
+        ws3.append(["Confidence", "Kind", "Title", "Source", "URL", "First Seen", "Last Checked"])
+        for cell in ws3[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        for f in findings:
+            ws3.append([
+                f.get("confidence", 0), f.get("kind", ""), f.get("title", ""),
+                f.get("source", ""), f.get("url", ""),
+                f.get("first_seen", ""), f.get("last_checked", ""),
+            ])
+
+        for col in range(1, 8):
+            ws3.column_dimensions[get_column_letter(col)].width = 25
+
+    # Sheet 4: Timeline
+    timeline = meta.get("timeline") or []
+    if timeline:
+        ws4 = wb.create_sheet("Timeline")
+        ws4.append(["Date", "Kind", "Title", "Detail"])
+        for cell in ws4[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        for t in timeline:
+            ws4.append([t.get("date", ""), t.get("kind", ""), t.get("title", ""), t.get("detail", "")])
+
+        for col in range(1, 5):
+            ws4.column_dimensions[get_column_letter(col)].width = 30
+
+    # Sheet 5: Changes
+    changes = meta.get("changes") or []
+    if changes:
+        ws5 = wb.create_sheet("Changes")
+        ws5.append(["Site", "Username", "Field", "Old", "New", "Detected At"])
+        for cell in ws5[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        for c in changes:
+            ws5.append([
+                c.get("site", ""), c.get("username", ""),
+                c.get("label", c.get("field", "")),
+                c.get("old", ""), c.get("new", ""),
+                c.get("detected_at", ""),
+            ])
+
+        for col in range(1, 7):
+            ws5.column_dimensions[get_column_letter(col)].width = 25
+
+    # Sheet 6: Search engine hits
+    search = meta.get("search") or {}
+    hits = search.get("hits") or []
+    if hits:
+        ws6 = wb.create_sheet("Search Engine")
+        ws6.append(["Title", "URL", "Engine", "Query", "Snippet", "Mentions"])
+        for cell in ws6[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        for h in hits:
+            ws6.append([
+                h.get("title", ""), h.get("url", ""), h.get("engine", ""),
+                h.get("query", ""), h.get("snippet", ""), "Yes" if h.get("mentions") else "No",
+            ])
+
+        for col in range(1, 7):
+            ws6.column_dimensions[get_column_letter(col)].width = 25
+
+    # Freeze headers on all sheets
+    for ws in wb.worksheets:
+        ws.freeze_panes = "A2"
+
+    import io
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ---- Side-by-side comparison ------------------------------------------------
+
+def _diff_html(diffs: list[dict[str, Any]]) -> str:
+    """Render profile diffs as HTML."""
+    parts = []
+    for d in diffs:
+        field = escape(str(d.get("field", "")))
+        old = escape(str(d.get("old") or "—"))
+        new = escape(str(d.get("new") or "—"))
+        parts.append(f"<div>{field}: {old} → {new}</div>")
+    return "".join(parts)
+
+
+def to_comparison_html(
+    results_a: list[dict[str, Any]],
+    results_b: list[dict[str, Any]],
+    meta_a: dict[str, Any] | None = None,
+    meta_b: dict[str, Any] | None = None,
+    label_a: str = "Scan A",
+    label_b: str = "Scan B",
+) -> str:
+    """Generate a side-by-side comparison HTML report of two scans.
+
+    Shows what accounts were added, removed, or changed between two runs.
+    """
+    meta_a = meta_a or {}
+    meta_b = meta_b or {}
+    found_a = {f"{r['site'].lower()}:{r['username'].lower()}": r for r in _found(results_a)}
+    found_b = {f"{r['site'].lower()}:{r['username'].lower()}": r for r in _found(results_b)}
+
+    added = {k: v for k, v in found_b.items() if k not in found_a}
+    removed = {k: v for k, v in found_a.items() if k not in found_b}
+    common = {k: (found_a[k], found_b[k]) for k in found_a if k in found_b}
+
+    # Detect changed profiles
+    changed = []
+    for key, (old, new) in common.items():
+        old_info = old.get("info", {})
+        new_info = new.get("info", {})
+        diffs = []
+        for field in ("name", "bio", "location", "avatar", "followers", "following"):
+            old_val = old_info.get(field, "")
+            new_val = new_info.get(field, "")
+            if old_val != new_val:
+                diffs.append({"field": field, "old": old_val, "new": new_val})
+        if diffs:
+            changed.append({"account": old, "diffs": diffs})
+
+    added_rows = "".join(
+        f'<tr class="added"><td>+ {escape(r["site"])}</td><td>{escape(r["username"])}</td>'
+        f'<td>{_linkify(r["url"])}</td><td>{escape(str(r.get("info", {}).get("name", "")))}</td></tr>'
+        for r in added.values()
+    )
+    removed_rows = "".join(
+        f'<tr class="removed"><td>- {escape(r["site"])}</td><td>{escape(r["username"])}</td>'
+        f'<td>{_linkify(r["url"])}</td><td>{escape(str(r.get("info", {}).get("name", "")))}</td></tr>'
+        for r in removed.values()
+    )
+    changed_rows = "".join(
+        f'<tr class="changed"><td>~ {escape(c["account"]["site"])}</td><td>{escape(c["account"]["username"])}</td>'
+        f'<td colspan="2">{_diff_html(c["diffs"])}</td></tr>'
+        for c in changed
+    )
+
+    sa = meta_a.get("summary") or {}
+    sb = meta_b.get("summary") or {}
+
+    return f"""<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sleuth Comparison: {escape(label_a)} vs {escape(label_b)}</title>
+<style>
+:root {{ --bg:#f6f7f9; --panel:#fff; --text:#16181d; --muted:#5d6472; --line:#e3e6eb; --accent:#2f6fed; --ok:#14804a; --bad:#c2410c; --warn:#b45309; }}
+@media (prefers-color-scheme: dark) {{ :root {{ --bg:#0f1115; --panel:#171a21; --text:#e8eaef; --muted:#9aa3b2; --line:#272c36; --accent:#6f9bff; --ok:#3ccf83; --bad:#f2865e; --warn:#f0a44b; }} }}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,sans-serif; }}
+main {{ max-width:1100px; margin:0 auto; padding:32px 16px; }}
+.stats {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }}
+.stat {{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }}
+.stat b {{ font-size:24px; }} .stat span {{ color:var(--muted); font-size:13px; }}
+table {{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:13px; margin-bottom:20px; }}
+td,th {{ text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); }}
+tr.added {{ background:rgba(20,128,74,.08); }} tr.removed {{ background:rgba(194,65,12,.08); }} tr.changed {{ background:rgba(180,83,9,.08); }}
+h2 {{ font-size:18px; margin:24px 0 8px; }}
+a {{ color:var(--accent); }}
+</style>
+</head>
+<body><main>
+<h1>Sleuth Comparison Report</h1>
+<p style="color:var(--muted)">{escape(label_a)} vs {escape(label_b)}</p>
+<div class="stats">
+  <div class="stat"><b>{len(found_a)}</b><span>Accounts in {escape(label_a)}</span></div>
+  <div class="stat"><b>{len(found_b)}</b><span>Accounts in {escape(label_b)}</span></div>
+  <div class="stat"><b style="color:var(--ok)">+{len(added)}</b><span>New accounts</span></div>
+  <div class="stat"><b style="color:var(--bad)">-{len(removed)}</b><span>Removed accounts</span></div>
+  <div class="stat"><b style="color:var(--warn)">~{len(changed)}</b><span>Changed profiles</span></div>
+</div>
+{'<h2>New accounts (found in second scan)</h2><table><tr><th>Site</th><th>Username</th><th>URL</th><th>Name</th></tr>' + added_rows + '</table>' if added_rows else ''}
+{'<h2>Removed accounts (not found in second scan)</h2><table><tr><th>Site</th><th>Username</th><th>URL</th><th>Name</th></tr>' + removed_rows + '</table>' if removed_rows else ''}
+{'<h2>Changed profiles</h2><table><tr><th>Site</th><th>Username</th><th>Changes</th></tr>' + changed_rows + '</table>' if changed_rows else ''}
+{'<p style="color:var(--muted)">No differences found between scans.</p>' if not (added_rows or removed_rows or changed_rows) else ''}
+</main></body></html>"""
+
+
+# ---- Map visualization -------------------------------------------------------
+
+def _map_html(locations: list[dict[str, Any]]) -> str:
+    """Generate an embedded map showing GPS coordinates from EXIF or profile data.
+
+    Uses OpenStreetMap embed (no API key required).
+    """
+    points = [(loc.get("lat"), loc.get("lon"), loc.get("label", "")) for loc in locations if loc.get("lat") and loc.get("lon")]
+    if not points:
+        return ""
+
+    # Calculate center and zoom
+    avg_lat = sum(p[0] for p in points) / len(points)
+    avg_lon = sum(p[1] for p in points) / len(points)
+    if len(points) == 1:
+        zoom = 13
+    else:
+        lat_range = max(p[0] for p in points) - min(p[0] for p in points)
+        lon_range = max(p[1] for p in points) - min(p[1] for p in points)
+        zoom = 10 if (lat_range > 1 or lon_range > 1) else 12
+
+    # Build marker list for Leaflet
+    markers_js = "".join(
+        f'L.marker([{p[0]}, {p[1]}]).addTo(map).bindPopup("{escape(p[2])}");'
+        for p in points
+    )
+
+    return f"""
+<div id="sleuth-map" style="width:100%;height:400px;border-radius:10px;overflow:hidden;border:1px solid var(--line);"></div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {{
+  var map = L.map('sleuth-map').setView([{avg_lat}, {avg_lon}], {zoom});
+  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+  }}).addTo(map);
+  {markers_js}
+}})();
+</script>"""
+
+
+# ---- Dark mode toggle for HTML report ----------------------------------------
+
+_DARK_MODE_SCRIPT = """
+<script>
+(function(){
+  var stored = localStorage.getItem('sleuth-theme');
+  if (stored === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  else if (stored === 'light') document.documentElement.setAttribute('data-theme','light');
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('sleuth-theme', next);
+  });
+})();
+</script>
+"""
+
+_DARK_MODE_STYLES = """
+[data-theme="light"] { --bg:#f6f7f9; --panel:#fff; --text:#16181d; --muted:#5d6472; --line:#e3e6eb; --accent:#2f6fed; --ok:#14804a; --warn:#b45309; --bad:#c2410c; --link:#7a3fd1; --high:#c0262d; --medium:#a85a06; }
+[data-theme="dark"] { --bg:#0f1115; --panel:#171a21; --text:#e8eaef; --muted:#9aa3b2; --line:#272c36; --accent:#6f9bff; --ok:#3ccf83; --warn:#f0a44b; --bad:#f2865e; --link:#b48cff; --high:#ff7b84; --medium:#f2a54a; }
+#theme-toggle { position:fixed; top:16px; right:16px; z-index:999; background:var(--panel); border:1px solid var(--line); border-radius:99px; padding:6px 14px; cursor:pointer; font-size:14px; color:var(--text); }
+"""
+
+# ---- Custom templates -------------------------------------------------------
+
+def render_with_template(
+    template_path: str,
+    results: list[dict[str, Any]],
+    meta: dict[str, Any] | None = None,
+) -> str:
+    """Render results using a custom HTML template.
+
+    The template file should contain ``{{placeholder}}`` markers that will
+    be replaced with data from the results. Supported placeholders:
+    - ``{{title}}`` — scan target usernames
+    - ``{{date}}`` — current date
+    - ``{{stats}}`` — summary statistics
+    - ``{{accounts}}`` — found accounts table
+    - ``{{identities}}`` — identity clusters
+    - ``{{findings}}`` — evidence findings
+    - ``{{timeline}}`` — timeline events
+    """
+    meta = meta or {}
+    from pathlib import Path as P
+    template = P(template_path).read_text(encoding="utf-8")
+
+    # Build replacement values
+    found = _found(results)
+    usernames = sorted({r["username"] for r in results}, key=str.lower)
+    s = meta.get("summary") or {}
+    when = meta.get("date") or datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    stats = f"Found: {len(found)} | Linked: {s.get('linked_accounts', 0)} | Evidence: {s.get('evidence', 0)}"
+
+    accounts_html = "".join(
+        f'<div class="account"><a href="{escape(r["url"])}">{escape(r["site"])} @{escape(r["username"])}</a></div>'
+        for r in found
+    )
+
+    clusters = meta.get("clusters") or []
+    identities_html = "".join(
+        f'<div class="identity">{c.get("confidence", 0)}%: {escape(", ".join(a.get("username","") for a in c.get("accounts",[])))}</div>'
+        for c in clusters
+    )
+
+    findings = meta.get("findings") or []
+    findings_html = "".join(
+        f'<div class="finding"><b>{escape(f.get("title",""))}</b> ({f.get("confidence",0)}/100) — {escape(f.get("source",""))}</div>'
+        for f in findings
+    )
+
+    timeline = meta.get("timeline") or []
+    timeline_html = "".join(
+        f'<div class="event"><time>{escape(_day(t.get("date","")))}</time> {escape(t.get("title",""))}</div>'
+        for t in timeline
+    )
+
+    replacements = {
+        "title": escape(", ".join(meta.get("usernames") or usernames)),
+        "date": escape(when),
+        "stats": stats,
+        "accounts": accounts_html,
+        "identities": identities_html,
+        "findings": findings_html,
+        "timeline": timeline_html,
+        "summary": escape(json.dumps(s, ensure_ascii=False)),
+        "results": escape(json.dumps(results, ensure_ascii=False, default=str)),
+        "meta": escape(json.dumps(meta, ensure_ascii=False, default=str)),
+    }
+
+    for key, value in replacements.items():
+        template = template.replace("{{" + key + "}}", value)
+
+    return template
+
+
+# ---- Annotations ----------------------------------------------------------
+
+@dataclass
+class Annotation:
+    """An investigator annotation on a finding or account."""
+
+    target_id: str  # finding/account ID
+    text: str
+    author: str = "investigator"
+    timestamp: float = field(default_factory=time.time)
+    color: str = ""  # highlight color
+
+
+def apply_annotations(html: str, annotations: list[Annotation]) -> str:
+    """Insert annotation markers into an HTML report.
+
+    Annotations are inserted as small colored notes next to the targeted
+    finding's details element.
+    """
+    for ann in annotations:
+        anchor = _anchor(ann.target_id)
+        # Insert annotation after the matching element
+        note = (
+            f'<div class="annotation" style="border-left:3px solid {ann.color or "#f0a44b"};'
+            f'padding:4px 12px;margin:4px 0;font-size:13px;color:var(--muted);">'
+            f'<b>{escape(ann.author)}</b>: {escape(ann.text)} '
+            f'<small>{escape(_day(str(ann.timestamp)))}</small></div>'
+        )
+        # Find the closing </details> for this anchor and insert before it
+        import re as _re
+        pattern = rf'(id="{_re.escape(anchor)}".*?)(</details>)'
+        html = _re.sub(pattern, rf'\1{note}\2', html, flags=_re.DOTALL, count=1)
+    return html

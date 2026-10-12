@@ -1090,5 +1090,205 @@
       "https://www.youtube.com/c/{}",
       "https://www.youtube.com/user/{}"
     ]
+  },
+  "Bilibili": {
+    "url": "https://space.bilibili.com/{}",
+    "main": "https://www.bilibili.com/",
+    "check": "status_code",
+    "regex": "^[0-9]{1,20}$",
+    "tags": [
+      "video",
+      "cn"
+    ],
+    "claimed": "1",
+    "extract": false
+  },
+  "Bitbucket": {
+    "url": "https://bitbucket.org/{}/",
+    "main": "https://bitbucket.org/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{1,30}$",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "atlassian"
+  },
+  "DCInside": {
+    "url": "https://gallog.dcinside.com/{}",
+    "main": "https://www.dcinside.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,30}$",
+    "tags": [
+      "social",
+      "kr"
+    ],
+    "claimed": "king"
+  },
+  "Etherscan": {
+    "url": "https://etherscan.io/address/{}",
+    "main": "https://etherscan.io/",
+    "check": "status_code",
+    "regex": "^0x[a-fA-F0-9]{40}$|^.+\\.eth$",
+    "tags": [
+      "crypto"
+    ],
+    "claimed": "vitalik.eth",
+    "extract": false
+  },
+  "Naver Blog": {
+    "url": "https://blog.naver.com/{}",
+    "main": "https://blog.naver.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,20}$",
+    "tags": [
+      "blog",
+      "kr"
+    ],
+    "claimed": "naver"
+  },
+  "OpenSea": {
+    "url": "https://opensea.io/{}",
+    "main": "https://opensea.io/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{3,40}$",
+    "tags": [
+      "crypto",
+      "nft"
+    ],
+    "claimed": "nft"
+  },
+  "Pantip": {
+    "url": "https://pantip.com/profile/{}",
+    "main": "https://pantip.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,50}$",
+    "tags": [
+      "social",
+      "th"
+    ],
+    "claimed": "kai",
+    "extract": false
+  },
+  "Replit": {
+    "url": "https://replit.com/@{}",
+    "main": "https://replit.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,30}$",
+    "tags": [
+      "coding"
+    ],
+    "claimed": "replit"
+  },
+  "ResearchGate": {
+    "url": "https://www.researchgate.net/profile/{}",
+    "main": "https://www.researchgate.net/",
+    "check": "status_code",
+    "tags": [
+      "academic",
+      "science"
+    ],
+    "claimed": "Shing-Tung_Yau"
+  },
+  "Serebii": {
+    "url": "https://forums.serebii.net/members/{}",
+    "main": "https://www.serebii.net/",
+    "check": "status_code",
+    "tags": [
+      "gaming"
+    ],
+    "claimed": "Serebii",
+    "extract": false
+  },
+  "Stack Overflow": {
+    "url": "https://stackoverflow.com/users/story/{}",
+    "main": "https://stackoverflow.com/",
+    "check": "status_code",
+    "regex": "^[0-9]{1,10}$",
+    "tags": [
+      "coding",
+      "qa"
+    ],
+    "claimed": "1",
+    "extract": false
+  },
+  "Taringa": {
+    "url": "https://www.taringa.net/{}",
+    "main": "https://www.taringa.net/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{3,30}$",
+    "tags": [
+      "social",
+      "es"
+    ],
+    "claimed": "taringa"
+  },
+  "TryHackMe": {
+    "url": "https://tryhackme.com/p/{}",
+    "main": "https://tryhackme.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{3,30}$",
+    "tags": [
+      "security",
+      "coding"
+    ],
+    "claimed": "tryhackme"
+  },
+  "Vimeo": {
+    "url": "https://vimeo.com/{}",
+    "main": "https://vimeo.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{3,40}$",
+    "tags": [
+      "video"
+    ],
+    "claimed": "vimeo"
+  },
+  "Weibo": {
+    "url": "https://weibo.com/{}",
+    "main": "https://weibo.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{1,30}$",
+    "tags": [
+      "social",
+      "cn"
+    ],
+    "claimed": "weibo"
+  },
+  "Wongnai": {
+    "url": "https://www.wongnai.com/profiles/{}",
+    "main": "https://www.wongnai.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,40}$",
+    "tags": [
+      "social",
+      "th",
+      "food"
+    ],
+    "claimed": "wongnai",
+    "extract": false
+  },
+  "Xiaohongshu": {
+    "url": "https://www.xiaohongshu.com/user/profile/{}",
+    "main": "https://www.xiaohongshu.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{5,40}$",
+    "tags": [
+      "social",
+      "cn"
+    ],
+    "claimed": "xiaohongshu",
+    "extract": false
+  },
+  "Zhihu": {
+    "url": "https://www.zhihu.com/people/{}",
+    "main": "https://www.zhihu.com/",
+    "check": "status_code",
+    "regex": "^[a-zA-Z0-9_-]{2,30}$",
+    "tags": [
+      "social",
+      "qa",
+      "cn"
+    ],
+    "claimed": "zhihu"
   }
 }

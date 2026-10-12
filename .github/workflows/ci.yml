@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install openpyxl  # for xlsx export tests
+
+      - name: Validate sites.json
+        run: python -c "from sleuth.sites import load_sites; sites = load_sites(); print(f'Loaded {len(sites)} sites OK')"
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Import check
+        run: |
+          python -c "import sleuth; print(f'Sleuth v{sleuth.__version__} imported OK')"
+          python -c "from sleuth import analysis, crypto, imaging, regional, enrich; print('modules import OK')"
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build package
+        run: |
+          pip install build
+          python -m build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sleuth-dist
+          path: dist/
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t sleuth:latest .
+
+      - name: Test Docker image
+        run: docker run --rm sleuth:latest python -c "from sleuth.sites import load_sites; print(f'Docker: {len(load_sites())} sites loaded')"
