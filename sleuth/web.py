@@ -49,7 +49,7 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
     app.cleanup_ctx.append(open_history)
 
     async def index(_: web.Request) -> web.FileResponse:
-        return web.FileResponse(STATIC / "index.html")
+        return web.FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
     async def sites(_: web.Request) -> web.Response:
         s = app["all_sites"]
@@ -246,7 +246,7 @@ def add_workspace_routes(app: web.Application) -> None:
         return data
 
     async def workspace(_: web.Request) -> web.FileResponse:
-        return web.FileResponse(STATIC / "workspace.html")
+        return web.FileResponse(STATIC / "workspace.html", headers={"Cache-Control": "no-cache"})
 
     # -- runs (replay / reopen) --
     async def runs(request: web.Request) -> web.Response:
@@ -387,7 +387,7 @@ def add_scan_routes(app: web.Application) -> None:
     app.cleanup_ctx.append(open_store)
 
     async def scan_page(_: web.Request) -> web.FileResponse:
-        return web.FileResponse(STATIC / "scan.html")
+        return web.FileResponse(STATIC / "scan.html", headers={"Cache-Control": "no-cache"})
 
     async def modules(_: web.Request) -> web.Response:
         return web.json_response({
