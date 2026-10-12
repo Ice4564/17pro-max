@@ -6,7 +6,7 @@
 <title>Sleuth</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
 <script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<link rel="stylesheet" href="/static/theme.css">
+<link rel="stylesheet" href="/static/theme.css?v=2.0.0">
 <style>
 .hero { padding:30px 0 6px; }
 .hero { position:relative; }
@@ -535,7 +535,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   <form id="asstForm" autocomplete="off"><input id="asstIn" placeholder='เช่น "ตรวจ ice4564" หรือ "ทำไม GitHub"'><button class="btn" type="submit">ส่ง</button></form>
 </section>
 
-<script src="/static/common.js"></script>
+<script src="/static/common.js?v=2.0.0"></script>
 <script>
 const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
                 identity: [], showAllId: false, usernames: [], connections: [], domains: [], graph: null, queries: [],
