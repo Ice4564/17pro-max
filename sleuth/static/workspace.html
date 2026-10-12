@@ -8,9 +8,12 @@
 <script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="stylesheet" href="/static/theme.css?v=2.0.0">
 <style>
-.hero { padding:30px 0 10px; }
-.hero h1 { font-size:26px; margin:0 0 6px; }
-.hero p { margin:0; color:var(--muted); max-width:760px; }
+.hero { padding:30px 0 10px; position:relative; }
+.hero h1 { font-size:28px; margin:0 0 6px; letter-spacing:.3px; }
+.hero h1::before { content:"> "; color:var(--accent); font-family:var(--mono); text-shadow:0 0 14px var(--glow); }
+.hero h1::after { content:"_"; color:var(--accent); font-family:var(--mono); animation:wblink 1.1s step-end infinite; margin-left:2px; text-shadow:0 0 14px var(--glow); }
+@keyframes wblink { 50% { opacity:0; } }
+.hero p { margin:0; color:var(--muted); max-width:760px; font-family:var(--mono); font-size:13px; line-height:1.7; }
 .cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; padding-bottom:60px; }
 .col { display:flex; flex-direction:column; gap:16px; min-width:0; }
 .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin:14px 0 16px; }

@@ -21,11 +21,17 @@ nav { display:flex; gap:4px; }
 nav a { text-decoration:none; color:var(--muted); padding:6px 12px; border-radius:7px; font-size:14px; }
 nav a.on { background:var(--panel2); color:var(--text); font-weight:600; }
 
-.hero { padding:26px 0 6px; }
-.hero h1 { font-size:24px; margin:0 0 4px; }
-.hero p { margin:0; color:var(--muted); }
+.hero { padding:26px 0 6px; position:relative; }
+.hero h1 { font-size:26px; margin:0 0 4px; letter-spacing:.3px; }
+.hero h1::before { content:"> "; color:var(--accent); font-family:var(--mono); text-shadow:0 0 14px var(--glow); }
+.hero h1::after { content:"_"; color:var(--accent); font-family:var(--mono); animation:sblink 1.1s step-end infinite; margin-left:2px; text-shadow:0 0 14px var(--glow); }
+@keyframes sblink { 50% { opacity:0; } }
+.hero p { margin:0; color:var(--muted); font-family:var(--mono); font-size:13px; line-height:1.7; }
 
-form.search { margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; box-shadow:var(--shadow); }
+form.search { position:relative; margin-top:16px; background:color-mix(in srgb, var(--panel) 88%, transparent); border:1px solid var(--line2); border-radius:12px; padding:16px; box-shadow:var(--shadow); }
+form.search::before, form.search::after { content:""; position:absolute; width:14px; height:14px; pointer-events:none; opacity:.7; }
+form.search::before { left:-1px; top:-1px; border-left:2px solid var(--accent); border-top:2px solid var(--accent); border-top-left-radius:12px; }
+form.search::after { right:-1px; bottom:-1px; border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); border-bottom-right-radius:12px; }
 .row { display:flex; gap:10px; flex-wrap:wrap; }
 .q { flex:1 1 320px; display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:0 12px; }
 .q input { flex:1; min-width:0; border:0; background:transparent; height:44px; outline:none; font-size:16px; }
@@ -58,7 +64,8 @@ details.mods summary { cursor:pointer; color:var(--muted); font-size:14px; }
 .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:22px 0 16px; overflow-x:auto; scrollbar-width:none; }
 .tabs::-webkit-scrollbar { display:none; }
 .tabs button { border:0; background:transparent; padding:10px 14px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
-.tabs button[aria-selected="true"] { color:var(--text); border-bottom-color:var(--accent); font-weight:600; }
+.tabs button { font-family:var(--mono); letter-spacing:.3px; }
+.tabs button[aria-selected="true"] { color:var(--accent); border-bottom-color:var(--accent); font-weight:700; text-shadow:0 0 12px var(--glow); }
 .pane { display:none; padding-bottom:60px; }
 .pane.show { display:block; }
 
