@@ -124,6 +124,29 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--self-check", action="store_true", help="test every site's detection rule against the live site")
     g.add_argument("--disable-broken", action="store_true", help="with --self-check: mark failing sites disabled in the DB")
     g.add_argument("--version", action="version", version=f"sleuth {__version__}")
+
+    g = p.add_argument_group("v3 OSINT tools (advanced)")
+    g.add_argument("--dorks", metavar="TARGET", help="generate Google dorks for a target (username, email, name, or domain)")
+    g.add_argument("--deepsearch", metavar="TARGET", help="deep search: Reddit, 4chan, GitHub, GitLab, pastes, academic")
+    g.add_argument("--iocs", metavar="TEXT", help="extract IOCs (IPs, hashes, URLs, emails, domains) from text or @file")
+    g.add_argument("--stix", metavar="FILE", help="export search results JSON to STIX 2.1 bundle")
+    g.add_argument("--misp", metavar="FILE", help="export search results JSON to MISP event")
+    g.add_argument("--maltego", metavar="FILE", help="export search results JSON to Maltego XML")
+    g.add_argument("--privacy", metavar="FILE", help="privacy risk assessment from search results JSON")
+    g.add_argument("--remediation", action="store_true", help="show remediation guides for reducing online exposure")
+    g.add_argument("--forensics", metavar="URL", help="forensic analysis of an image URL (steganography, ELA, faces, deepfake)")
+    g.add_argument("--behavior", metavar="FILE", help="behavioral analysis from search results JSON")
+    g.add_argument("--auto-investigate", metavar="FILE", help="auto-investigation planner from search results JSON")
+    g.add_argument("--playbooks", action="store_true", help="list investigation playbooks, then exit")
+    g.add_argument("--playbook", metavar="CATEGORY", help="show a specific playbook (missing_person, fraud, identity_theft, threat_assessment, due_diligence)")
+    g.add_argument("--archive", metavar="URL", help="check archives (Wayback, archive.today, Google Cache) for a URL")
+    g.add_argument("--infra", metavar="DOMAIN", help="infrastructure intel: CT logs, DNS, subdomains, WHOIS, Shodan")
+    g.add_argument("--graph", metavar="FILE", help="generate network graph JSON from search results")
+    g.add_argument("--notes", action="store_true", help="manage case notes (interactive)")
+    g.add_argument("--annotations", action="store_true", help="manage result annotations (interactive)")
+    g.add_argument("--custody", action="store_true", help="show chain of custody log")
+    g.add_argument("--schedules", action="store_true", help="list scheduled scans")
+    g.add_argument("--feeds", action="store_true", help="monitor RSS/Atom feeds for keywords (interactive)")
     return p
 
 
@@ -477,6 +500,540 @@ def run_workspace_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_results(path: str) -> list[dict]:
+    """Load search results from a JSON file (list or dict with 'results')."""
+    import json
+    p = Path(path)
+    if not p.exists():
+        print(C.red(f"File not found: {path}"))
+        return []
+    data = json.loads(p.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and "results" in data:
+        return data["results"]
+    return []
+
+
+def run_v3_cli(args: argparse.Namespace) -> int:
+    """Handle v3 OSINT tool commands."""
+    if args.dorks:
+        return _cmd_dorks(args)
+    if args.deepsearch:
+        return _cmd_deepsearch(args)
+    if args.iocs:
+        return _cmd_iocs(args)
+    if args.stix:
+        return _cmd_stix(args)
+    if args.misp:
+        return _cmd_misp(args)
+    if args.maltego:
+        return _cmd_maltego(args)
+    if args.privacy:
+        return _cmd_privacy(args)
+    if args.remediation:
+        return _cmd_remediation(args)
+    if args.forensics:
+        return _cmd_forensics(args)
+    if args.behavior:
+        return _cmd_behavior(args)
+    if args.auto_investigate:
+        return _cmd_auto_investigate(args)
+    if args.playbooks:
+        return _cmd_playbooks(args)
+    if args.playbook:
+        return _cmd_playbook_detail(args)
+    if args.archive:
+        return _cmd_archive(args)
+    if args.infra:
+        return _cmd_infra(args)
+    if args.graph:
+        return _cmd_graph(args)
+    if args.notes:
+        return _cmd_notes(args)
+    if args.annotations:
+        return _cmd_annotations(args)
+    if args.custody:
+        return _cmd_custody(args)
+    if args.schedules:
+        return _cmd_schedules(args)
+    if args.feeds:
+        return _cmd_feeds(args)
+    return 0
+
+
+def _cmd_dorks(args: argparse.Namespace) -> int:
+    """Generate Google dorks for a target."""
+    from .deepsearch import build_dorks
+    dorks = build_dorks(args.dorks)
+    print(f"{C.cyan('[*]')} {len(dorks)} dorks for {C.bold(args.dorks)}:\n")
+    for d in dorks:
+        print(f"  {C.bold('[' + d.category + ']')} {d.query}")
+        print(f"    {C.dim(d.description)}")
+        print(f"    {C.cyan(d.url)}\n")
+    return 0
+
+
+def _cmd_deepsearch(args: argparse.Namespace) -> int:
+    """Deep search across forums, GitHub, pastes, etc."""
+    import aiohttp
+    from .deepsearch import deep_search
+
+    async def _run():
+        async with aiohttp.ClientSession() as session:
+            return await deep_search(session, args.deepsearch)
+
+    print(f"{C.cyan('[*]')} Deep searching for {C.bold(args.deepsearch)}...\n")
+    result = asyncio.run(_run())
+    for source, items in result.items():
+        if source in ("target", "query"):
+            continue
+        if not items:
+            continue
+        print(f"\n{C.bold(source)} ({len(items)}):")
+        for item in items[:10]:
+            if isinstance(item, dict):
+                title = item.get("title", item.get("url", str(item)))
+                url = item.get("url", "")
+                print(f"  {C.green('+')} {title}")
+                if url:
+                    print(f"    {C.cyan(url)}")
+    return 0
+
+
+def _cmd_iocs(args: argparse.Namespace) -> int:
+    """Extract IOCs from text or @file."""
+    from .threatintel import extract_iocs
+    text = args.iocs
+    if text.startswith("@"):
+        p = Path(text[1:])
+        if not p.exists():
+            print(C.red(f"File not found: {p}"))
+            return 1
+        text = p.read_text(encoding="utf-8")
+    iocs = extract_iocs(text)
+    if not iocs:
+        print(f"{C.yellow('[!]')} No IOCs found in the text.")
+        return 0
+    print(f"{C.cyan('[*]')} {len(iocs)} IOC(s) found:\n")
+    by_type: dict[str, list[str]] = {}
+    for ioc in iocs:
+        by_type.setdefault(ioc["type"], []).append(ioc["value"])
+    for ioc_type, values in by_type.items():
+        print(f"  {C.bold(ioc_type)} ({len(values)}):")
+        for v in values:
+            print(f"    {C.green(v)}")
+    return 0
+
+
+def _cmd_stix(args: argparse.Namespace) -> int:
+    """Export results to STIX 2.1."""
+    from .threatintel import write_stix
+    results = _load_results(args.stix)
+    if not results:
+        return 1
+    out = str(Path(args.output) / f"stix_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    write_stix(results, out)
+    print(f"{C.cyan('[+]')} STIX 2.1 bundle: {out}")
+    return 0
+
+
+def _cmd_misp(args: argparse.Namespace) -> int:
+    """Export results to MISP."""
+    from .threatintel import write_misp
+    results = _load_results(args.misp)
+    if not results:
+        return 1
+    out = str(Path(args.output) / f"misp_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    write_misp(results, out)
+    print(f"{C.cyan('[+]')} MISP event: {out}")
+    return 0
+
+
+def _cmd_maltego(args: argparse.Namespace) -> int:
+    """Export results to Maltego XML."""
+    from .threatintel import write_maltego
+    results = _load_results(args.maltego)
+    if not results:
+        return 1
+    out = str(Path(args.output) / f"maltego_{datetime.now().strftime('%Y%m%d-%H%M%S')}.graph")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    write_maltego(results, out)
+    print(f"{C.cyan('[+]')} Maltego graph: {out}")
+    return 0
+
+
+def _cmd_privacy(args: argparse.Namespace) -> int:
+    """Privacy risk assessment."""
+    from .counter import assess_privacy_risk, generate_remediation_plan
+    results = _load_results(args.privacy)
+    if not results:
+        return 1
+    assessment = assess_privacy_risk(results)
+    print(f"\n{C.bold('Privacy Risk Assessment')}")
+    print(f"  Score: {C.bold(str(assessment.score))}/100 ({assessment.level})")
+    print(f"  Exposed data types: {', '.join(assessment.exposed_data_types) if assessment.exposed_data_types else 'none'}")
+    print(f"\n  {C.bold('Risk factors')}:")
+    for f in assessment.factors:
+        sev = C.red(f.severity) if f.severity == "high" else C.yellow(f.severity) if f.severity == "medium" else C.dim(f.severity)
+        print(f"    {sev} [{f.category}] {f.description} (+{f.points} pts)")
+        print(f"       {C.dim('Fix: ' + f.remediation)}")
+    if assessment.recommendations:
+        print(f"\n  {C.bold('Recommendations')}:")
+        for r in assessment.recommendations:
+            print(f"    {C.yellow('-')} {r}")
+    plan = generate_remediation_plan(results)
+    if plan:
+        print(f"\n  {C.bold('Remediation plan')} ({len(plan)} steps):")
+        for step in plan:
+            print(f"    [{step.get('priority', '?')}] {step.get('issue', step.get('guide', ''))}")
+            print(f"       {C.dim(step.get('action', ''))}")
+    return 0
+
+
+def _cmd_remediation(args: argparse.Namespace) -> int:
+    """Show remediation guides."""
+    from .counter import REMEDIATION_GUIDES
+    print(f"\n{C.bold('Remediation Guides')} ({len(REMEDIATION_GUIDES)} platforms):\n")
+    for platform, guide in REMEDIATION_GUIDES.items():
+        print(f"  {C.cyan(platform)}:")
+        for action, instruction in guide.items():
+            print(f"    {C.bold(action)}: {instruction}")
+        print()
+    return 0
+
+
+def _cmd_forensics(args: argparse.Namespace) -> int:
+    """Forensic analysis of an image URL."""
+    import aiohttp
+    from .forensics import analyze_avatar
+
+    async def _run():
+        async with aiohttp.ClientSession() as session:
+            return await analyze_avatar(session, args.forensics)
+
+    print(f"{C.cyan('[*]')} Forensic analysis of {args.forensics}...\n")
+    result = asyncio.run(_run())
+    if result.get("error"):
+        print(f"  {C.red('Error:')} {result['error']}")
+        return 1
+    for key, val in result.items():
+        if key == "url":
+            continue
+        if isinstance(val, dict):
+            print(f"  {C.bold(key)}:")
+            for k, v in val.items():
+                if isinstance(v, list):
+                    print(f"    {k}: {len(v)} items")
+                else:
+                    print(f"    {k}: {v}")
+        else:
+            print(f"  {C.bold(key)}: {val}")
+    return 0
+
+
+def _cmd_behavior(args: argparse.Namespace) -> int:
+    """Behavioral analysis from search results."""
+    from .behavior import build_behavioral_profile
+    results = _load_results(args.behavior)
+    if not results:
+        return 1
+    texts = []
+    timestamps = []
+    for r in results:
+        if r.get("status") != "found":
+            continue
+        info = r.get("info", {})
+        bio = info.get("bio", "")
+        if bio:
+            texts.append(bio)
+        created = info.get("created", "")
+        if created:
+            timestamps.append(created)
+    if not texts:
+        print(f"{C.yellow('[!]')} No text content found in results to analyze.")
+        return 0
+    profile = build_behavioral_profile(texts, timestamps)
+    print(f"\n{C.bold('Behavioral Profile')}\n")
+    for key, val in profile.items():
+        if isinstance(val, dict):
+            print(f"  {C.bold(key)}:")
+            for k, v in val.items():
+                if isinstance(v, list):
+                    print(f"    {k}: {', '.join(str(x) for x in v[:10])}")
+                else:
+                    print(f"    {k}: {v}")
+        elif isinstance(val, list):
+            print(f"  {C.bold(key)}: {len(val)} items")
+        else:
+            print(f"  {C.bold(key)}: {val}")
+    return 0
+
+
+def _cmd_auto_investigate(args: argparse.Namespace) -> int:
+    """Auto-investigation planner."""
+    from .realtime import AutoInvestigator
+    results = _load_results(args.auto_investigate)
+    if not results:
+        return 1
+    ai = AutoInvestigator()
+    steps = ai.plan(results)
+    print(f"\n{C.bold('Auto-Investigation Plan')} ({len(steps)} steps):\n")
+    for i, step in enumerate(steps, 1):
+        prio = C.red(str(step.priority)) if step.priority <= 3 else C.yellow(str(step.priority)) if step.priority <= 6 else C.dim(str(step.priority))
+        print(f"  {C.bold(str(i) + '.')} [P{prio}] {step.action}")
+        print(f"     target: {C.cyan(step.target)}")
+        print(f"     {C.dim(step.reason)}")
+    return 0
+
+
+def _cmd_playbooks(args: argparse.Namespace) -> int:
+    """List investigation playbooks."""
+    from .casemgmt import PLAYBOOKS
+    print(f"\n{C.bold('Investigation Playbooks')} ({len(PLAYBOOKS)}):\n")
+    for key, pb in PLAYBOOKS.items():
+        print(f"  {C.cyan(key):<22} {C.bold(pb.name)}")
+        print(f"  {'':22} {C.dim(pb.description[:80])}")
+        print(f"  {'':22} {C.dim(str(len(pb.steps)) + ' steps')}\n")
+    return 0
+
+
+def _cmd_playbook_detail(args: argparse.Namespace) -> int:
+    """Show a specific playbook."""
+    from .casemgmt import PLAYBOOKS
+    pb = PLAYBOOKS.get(args.playbook)
+    if not pb:
+        print(C.red(f"Unknown playbook: {args.playbook}"))
+        print(f"Available: {', '.join(PLAYBOOKS.keys())}")
+        return 1
+    print(f"\n{C.bold(pb.name)} ({pb.category})")
+    print(f"  {C.dim(pb.description)}\n")
+    for step in pb.steps:
+        print(f"  {C.bold(str(step.step) + '.')} {step.title}")
+        print(f"     {step.description}")
+        if step.tools:
+            print(f"     {C.dim('Tools: ' + ', '.join(step.tools))}")
+        if step.expected_output:
+            print(f"     {C.dim('Expected: ' + step.expected_output)}")
+        print()
+    if pb.legal_notes:
+        print(f"  {C.yellow('! Legal:')} {pb.legal_notes}")
+    return 0
+
+
+def _cmd_archive(args: argparse.Namespace) -> int:
+    """Check archives for a URL."""
+    import aiohttp
+    from .archive import check_archives, detect_deleted_content
+
+    async def _run():
+        async with aiohttp.ClientSession() as session:
+            return await check_archives(session, args.archive)
+
+    print(f"{C.cyan('[*]')} Checking archives for {args.archive}...\n")
+    result = asyncio.run(_run())
+    wb = result.wayback
+    if wb.snapshots:
+        print(f"  {C.green('[+]')} Wayback Machine: {len(wb.snapshots)} snapshots")
+        for s in wb.snapshots[:5]:
+            print(f"    {s.timestamp} {C.cyan(s.url)}")
+    else:
+        print(f"  {C.yellow('[!]')} Wayback Machine: no snapshots")
+    if result.archive_today:
+        print(f"  {C.green('[+]')} archive.today: {result.archive_today}")
+    if result.google_cache:
+        print(f"  {C.green('[+]')} Google Cache: {result.google_cache}")
+    deletion = detect_deleted_content(wb.snapshots)
+    if deletion.get("deleted"):
+        print(f"\n  {C.red('! Deleted content detected:')} {deletion['reason']}")
+    return 0
+
+
+def _cmd_infra(args: argparse.Namespace) -> int:
+    """Infrastructure intelligence scan."""
+    import aiohttp
+    from .infra_intel import infra_scan
+
+    async def _run():
+        async with aiohttp.ClientSession() as session:
+            return await infra_scan(session, args.infra)
+
+    print(f"{C.cyan('[*]')} Infrastructure scan of {C.bold(args.infra)}...\n")
+    result = asyncio.run(_run())
+    for key, val in result.items():
+        if isinstance(val, list):
+            print(f"  {C.bold(key)} ({len(val)}):")
+            for item in val[:10]:
+                if isinstance(item, dict):
+                    print(f"    {C.green('+')} {item}")
+                else:
+                    print(f"    {C.green('+')} {item}")
+        elif isinstance(val, dict):
+            print(f"  {C.bold(key)}:")
+            for k, v in val.items():
+                print(f"    {k}: {v}")
+        else:
+            print(f"  {C.bold(key)}: {val}")
+    return 0
+
+
+def _cmd_graph(args: argparse.Namespace) -> int:
+    """Generate network graph data."""
+    import json
+    from .viz import build_network_graph
+    results = _load_results(args.graph)
+    if not results:
+        return 1
+    graph = build_network_graph(results)
+    out = str(Path(args.output) / f"graph_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    Path(out).write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
+    n_nodes = len(graph.get("nodes", []))
+    n_links = len(graph.get("links", []))
+    print(f"{C.cyan('[+]')} Network graph: {out}")
+    print(f"  {n_nodes} nodes, {n_links} edges")
+    return 0
+
+
+def _cmd_notes(args: argparse.Namespace) -> int:
+    """Interactive case notes management."""
+    from .casemgmt import CaseNotes
+    notes = CaseNotes()
+    case_id = input(f"  {C.bold('Case ID')} (Enter = default): ").strip() or "default"
+    while True:
+        existing = notes.get_notes(case_id)
+        print(f"\n{C.bold(f'Notes for case {case_id}')} ({len(existing)}):\n")
+        for n in existing:
+            pin = C.yellow("* ") if n.get("pinned") else "  "
+            print(f"  {pin}#{n['id']} {n['author']}: {n['content'][:80]}  {C.dim(n.get('created', '')[:16])}")
+        print(f"\n  {C.bold('Commands')}: add | search <query> | pin <id> | del <id> | back")
+        cmd = input(f"  {C.bold('>')} ").strip()
+        if not cmd or cmd in ("back", "exit", "0"):
+            break
+        elif cmd == "add":
+            author = input("    author: ").strip() or "anonymous"
+            content = input("    note: ").strip()
+            if content:
+                notes.add(case_id, author, content)
+                print(f"  {C.green('+')} added")
+        elif cmd.startswith("search "):
+            q = cmd[7:]
+            found = notes.search(case_id, q)
+            for n in found:
+                print(f"  #{n['id']} {n['author']}: {n['content'][:80]}")
+        elif cmd.startswith("pin "):
+            try:
+                notes.pin(int(cmd[4:]))
+                print(f"  {C.green('+')} pinned")
+            except ValueError:
+                print(C.red("  invalid ID"))
+        elif cmd.startswith("del "):
+            try:
+                notes.delete(int(cmd[4:]))
+                print(f"  {C.green('+')} deleted")
+            except ValueError:
+                print(C.red("  invalid ID"))
+    return 0
+
+
+def _cmd_annotations(args: argparse.Namespace) -> int:
+    """Interactive annotations management."""
+    from .casemgmt import ResultAnnotations
+    ann = ResultAnnotations()
+    while True:
+        tags = ann.available_tags()
+        print(f"\n{C.bold('Result Annotations')}\n")
+        print(f"  {C.bold('Available tags')}:")
+        for t in tags:
+            print(f"    {C.cyan(t['name'])}: {t['description']}")
+        print(f"\n  {C.bold('Commands')}: tag <result_key> <tag> <author> | view <result_key> | back")
+        cmd = input(f"  {C.bold('>')} ").strip()
+        if not cmd or cmd in ("back", "exit", "0"):
+            break
+        elif cmd.startswith("tag "):
+            parts = cmd[4:].split()
+            if len(parts) >= 3:
+                ann.annotate(parts[0], parts[2], parts[1])
+                print(f"  {C.green('+')} annotated")
+            else:
+                print(C.red("  usage: tag <result_key> <tag> <author>"))
+        elif cmd.startswith("view "):
+            key = cmd[5:]
+            for a in ann.get_annotations(key):
+                print(f"  {a['author']}: {a.get('tag', '')} - {a.get('note', '')}")
+    return 0
+
+
+def _cmd_custody(args: argparse.Namespace) -> int:
+    """Show chain of custody log."""
+    from .casemgmt import ChainOfCustody
+    coc = ChainOfCustody()
+    case_id = input(f"  {C.bold('Case ID')} (Enter = default): ").strip() or "default"
+    chain = coc.get_chain(case_id)
+    if not chain:
+        print(f"  {C.yellow('[!]')} No custody records for case {case_id}")
+        return 0
+    print(f"\n{C.bold(f'Chain of Custody for case {case_id}')} ({len(chain)} entries):\n")
+    for entry in chain:
+        print(f"  {entry.get('timestamp', '')[:19]}  {C.bold(entry.get('actor', ''))}")
+        print(f"    action: {entry.get('action', '')}")
+        print(f"    detail: {entry.get('detail', '')}")
+        print()
+    verification = coc.verify_chain(case_id)
+    ok = C.green("OK") if verification.get("valid") else C.red("FAIL")
+    print(f"  {ok} Chain integrity: {verification.get('status', 'unknown')}")
+    return 0
+
+
+def _cmd_schedules(args: argparse.Namespace) -> int:
+    """List scheduled scans."""
+    from .realtime import scan_scheduler
+    schedules = scan_scheduler._schedules
+    if not schedules:
+        print(f"  {C.yellow('[!]')} No scheduled scans.")
+        print(f"  Use the web API or --auto-investigate to create schedules.")
+        return 0
+    print(f"\n{C.bold('Scheduled Scans')} ({len(schedules)}):\n")
+    for s in schedules:
+        last = s.last_run.strftime("%Y-%m-%d %H:%M") if s.last_run else "-"
+        print(f"  {C.bold(s.target):<24} every {s.interval_hours}h  email: {s.email or '-'}  last: {last}")
+    return 0
+
+
+def _cmd_feeds(args: argparse.Namespace) -> int:
+    """Interactive RSS/Atom feed monitor."""
+    import aiohttp
+    from .realtime import FeedMonitor, DEFAULT_FEEDS
+
+    target = input(f"  {C.bold('Keyword to monitor')}: ").strip()
+    if not target:
+        return 0
+    print(f"\n  {C.dim('Monitoring ' + str(len(DEFAULT_FEEDS)) + ' feeds for \"' + target + '\"...')}\n")
+
+    async def _run():
+        async with aiohttp.ClientSession() as session:
+            results = []
+            for feed_url in DEFAULT_FEEDS:
+                fm = FeedMonitor(feed_url=feed_url, target=target)
+                items = await fm.check(session)
+                if items:
+                    results.extend(items)
+            return results
+
+    items = asyncio.run(_run())
+    if not items:
+        print(f"  {C.yellow('[!]')} No mentions found.")
+        return 0
+    print(f"  {C.green('[+]')} {len(items)} mention(s) found:\n")
+    for item in items:
+        print(f"  {C.bold(item.title)}")
+        print(f"    {C.cyan(item.link)}")
+        print(f"    {C.dim(item.published)}\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Thai text on Windows consoles
@@ -517,6 +1074,14 @@ def main(argv: list[str] | None = None) -> int:
                 names = [c.username for c in numbered(u, *parse_range(args.numbers))]
                 print(f"  {C.dim('เติมเลข:')} {', '.join(names)}")
         return 0
+
+    # v3 OSINT tools
+    if any((args.dorks, args.deepsearch, args.iocs, args.stix, args.misp, args.maltego,
+            args.privacy, args.remediation, args.forensics, args.behavior,
+            args.auto_investigate, args.playbooks, args.playbook, args.archive,
+            args.infra, args.graph, args.notes, args.annotations, args.custody,
+            args.schedules, args.feeds)):
+        return run_v3_cli(args)
 
     if any((args.watch_add, args.watch_remove, args.watch_list, args.alerts, args.cases, args.intel,
             args.replay)):

@@ -6,13 +6,15 @@
 <title>Sleuth</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
 <script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<link rel="stylesheet" href="/static/theme.css?v=2.0.0">
+<link rel="stylesheet" href="/static/theme.css?v=3.0.0">
 <style>
 .hero { padding:30px 0 6px; }
 .hero { position:relative; }
-.hero h1 { font-size:28px; margin:0 0 6px; letter-spacing:.3px; line-height:1.15; }
-.hero h1::before { content:"> "; color:var(--accent); font-family:var(--mono); text-shadow:0 0 14px var(--glow); }
-.hero h1::after { content:"_"; color:var(--accent); font-family:var(--mono); animation:blink 1.1s step-end infinite; margin-left:2px; text-shadow:0 0 14px var(--glow); }
+.hero h1 { font-size:30px; margin:0 0 6px; letter-spacing:.3px; line-height:1.15;
+  background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+  filter:drop-shadow(0 0 16px color-mix(in srgb,var(--accent) 35%,transparent)); }
+.hero h1::before { content:"> "; -webkit-text-fill-color:var(--accent); color:var(--accent); font-family:var(--mono); }
+.hero h1::after { content:"_"; -webkit-text-fill-color:var(--accent); color:var(--accent); font-family:var(--mono); animation:blink 1.1s step-end infinite; margin-left:2px; }
 @keyframes blink { 50% { opacity:0; } }
 .hero p { font-family:var(--mono); font-size:13px; line-height:1.7; }
 .hero p { margin:0; color:var(--muted); max-width:760px; }
@@ -270,6 +272,31 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   .replay .dt { grid-column:1 / -1; }
   .tabs button { padding:8px 10px; }
 }
+
+/* v3 Tools */
+.v3grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
+.v3card { background:color-mix(in srgb,var(--panel) 92%,transparent); border:1px solid var(--line); border-radius:12px; padding:16px; min-width:0; }
+.v3card h3 { margin:0 0 10px; font-size:15px; }
+.v3card .desc { font-size:12px; color:var(--muted); margin:0 0 10px; }
+.v3card input, .v3card textarea { width:100%; box-sizing:border-box; border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:8px 10px; font-size:13px; color:var(--text); margin-bottom:8px; }
+.v3card textarea { resize:vertical; min-height:60px; font-family:var(--mono); }
+.v3card .btns { display:flex; gap:8px; flex-wrap:wrap; }
+.v3card .btns button { font-size:13px; padding:7px 14px; border:1px solid var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--accent); border-radius:8px; cursor:pointer; font-family:var(--mono); }
+.v3card .btns button:hover { background:color-mix(in srgb,var(--accent) 25%,transparent); }
+.v3card .btns button.ghost { border-color:var(--line); background:var(--panel2); color:var(--text); }
+.v3out { margin-top:10px; font-size:13px; max-height:400px; overflow-y:auto; }
+.v3out .row { padding:4px 0; border-top:1px solid var(--line); }
+.v3out .row:first-child { border-top:0; }
+.v3out .tag { display:inline-block; font-size:11px; font-weight:600; border-radius:99px; padding:1px 8px; background:var(--panel2); color:var(--muted); margin-right:6px; }
+.v3out .tag.high { background:var(--high-bg); color:var(--high); }
+.v3out .tag.med { background:var(--medium-bg); color:var(--medium); }
+.v3out .tag.low { background:var(--panel2); color:var(--muted); }
+.v3out pre { font-size:12px; white-space:pre-wrap; word-break:break-word; margin:0; }
+.v3out a { color:var(--accent); text-decoration:none; word-break:break-all; }
+.v3out .score { font-size:28px; font-weight:700; }
+.v3out .pb { width:100%; height:6px; border-radius:3px; background:var(--panel2); overflow:hidden; margin:6px 0; }
+.v3out .pb > div { height:100%; border-radius:3px; }
+.v3note { font-size:12px; color:var(--muted); margin-top:6px; }
 </style>
 </head>
 <body>
@@ -357,6 +384,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
       <button type="button" role="tab" data-tab="replay" aria-selected="false">Replay <span class="n" id="nReplay">0</span></button>
       <button type="button" role="tab" data-tab="query" aria-selected="false">สร้างคำค้น</button>
       <button type="button" role="tab" data-tab="export" aria-selected="false">Export รายงาน</button>
+      <button type="button" role="tab" data-tab="v3" aria-selected="false">v3 Tools</button>
     </div>
   </section>
 
@@ -495,6 +523,162 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
           <p class="note" id="exportNote"></p>
         </div>
       </div>
+
+      <div class="tabpanel" data-panel="v3" hidden>
+        <div class="v3grid">
+
+          <div class="v3card">
+            <h3>Google Dorks</h3>
+            <p class="desc">สร้างคำค้น Google สำหรับ username, email, ชื่อ หรือโดเมน</p>
+            <input id="v3DorkTarget" placeholder="เช่น john, admin@site.com" spellcheck="false">
+            <div class="btns"><button onclick="v3Dorks()">Generate</button></div>
+            <div class="v3out" id="v3DorkOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>IOC Extraction</h3>
+            <p class="desc">สกัด IP, hash, URL, email, domain จากข้อความ</p>
+            <textarea id="v3IocText" placeholder="วางข้อความที่ต้องการสกัด IOC..." spellcheck="false"></textarea>
+            <div class="btns"><button onclick="v3Iocs()">Extract</button></div>
+            <div class="v3out" id="v3IocOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Threat Intel Export</h3>
+            <p class="desc">Export ผลค้นปัจจุบันเป็น STIX / MISP / Maltego</p>
+            <div class="btns">
+              <button onclick="v3Export('stix')">STIX 2.1</button>
+              <button onclick="v3Export('misp')">MISP</button>
+              <button onclick="v3Export('maltego')">Maltego</button>
+            </div>
+            <div class="v3out" id="v3ExportOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Privacy Assessment</h3>
+            <p class="desc">ประเมินความเสี่ยงจากข้อมูลที่รั่วไหล + คู่มือลดการรั่วไหล</p>
+            <div class="btns">
+              <button onclick="v3Privacy()">Assess Risk</button>
+              <button class="ghost" onclick="v3Remediation()">Remediation</button>
+            </div>
+            <div class="v3out" id="v3PrivacyOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Image Forensics</h3>
+            <p class="desc">Steganography, ELA, ใบหน้า, deepfake indicators</p>
+            <input id="v3ForensicsUrl" placeholder="URL ของรูปภาพ" spellcheck="false">
+            <div class="btns"><button onclick="v3Forensics()">Analyze</button></div>
+            <div class="v3out" id="v3ForensicsOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Archive Check</h3>
+            <p class="desc">Wayback Machine, archive.today, Google Cache</p>
+            <input id="v3ArchiveUrl" placeholder="URL ที่ต้องการตรวจ" spellcheck="false">
+            <div class="btns"><button onclick="v3Archive()">Check</button></div>
+            <div class="v3out" id="v3ArchiveOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Infrastructure Intel</h3>
+            <p class="desc">CT logs, DNS, ซับโดเมน, WHOIS, Shodan</p>
+            <input id="v3InfraDomain" placeholder="example.com" spellcheck="false">
+            <div class="btns"><button onclick="v3Infra()">Scan</button></div>
+            <div class="v3out" id="v3InfraOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Behavioral Analysis</h3>
+            <p class="desc">Timezone, ตัวเขียน (stylometry), emoji fingerprint</p>
+            <div class="btns"><button onclick="v3Behavior()">Analyze Results</button></div>
+            <div class="v3out" id="v3BehaviorOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Playbooks</h3>
+            <p class="desc">5 แผนการสอบสวน: คนหาย, ฉ้อโกง, ปลอมตัว, ประเมินภัย, due diligence</p>
+            <div class="btns"><button onclick="v3Playbooks()">List All</button></div>
+            <div class="v3out" id="v3PlaybookOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Auto-Investigate</h3>
+            <p class="desc">วางแผนสอบสวนอัตโนมัติจากผลค้น</p>
+            <div class="btns"><button onclick="v3AutoInv()">Plan</button></div>
+            <div class="v3out" id="v3AutoInvOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Case Notes</h3>
+            <p class="desc">บันทึก, ค้นหา, pin บันทึกของเคส</p>
+            <input id="v3NotesCase" value="default" placeholder="Case ID" spellcheck="false">
+            <div class="btns">
+              <button onclick="v3NotesLoad()">Load</button>
+              <button class="ghost" onclick="v3NotesAdd()">Add Note</button>
+            </div>
+            <div class="v3out" id="v3NotesOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Chain of Custody</h3>
+            <p class="desc">บันทึกการจัดการหลักฐาน ตรวจความครบถ้วน</p>
+            <input id="v3CustodyCase" value="default" placeholder="Case ID" spellcheck="false">
+            <div class="btns"><button onclick="v3Custody()">View</button></div>
+            <div class="v3out" id="v3CustodyOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Deep Search</h3>
+            <p class="desc">ค้นลึก: Reddit, 4chan, GitHub, GitLab, pastes, academic</p>
+            <input id="v3DeepTarget" placeholder="เช่น john, admin@site.com" spellcheck="false">
+            <div class="btns"><button onclick="v3DeepSearch()">Search</button></div>
+            <div class="v3out" id="v3DeepOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Network Graph</h3>
+            <p class="desc">Visualize ความเชื่อมโยงระหว่างบัญชีและโดเมน</p>
+            <div class="btns">
+              <button onclick="v3Graph()">Build Graph</button>
+              <button class="ghost" onclick="window.open('/graph','_blank')">เปิดเต็มหน้า</button>
+            </div>
+            <div class="v3out" id="v3GraphOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Annotations</h3>
+            <p class="desc">ติดป้าย/tag ผลค้น + บันทึกหมายเหตุ</p>
+            <input id="v3AnnoKey" placeholder="result key (เช่น site:username)" spellcheck="false">
+            <div class="btns">
+              <button onclick="v3AnnoLoad()">Load</button>
+              <button class="ghost" onclick="v3AnnoTags()">Tags</button>
+            </div>
+            <div class="v3out" id="v3AnnoOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Scheduled Scans</h3>
+            <p class="desc">ตั้งเวลาสแกนอัตโนมัติ + ส่งอีเมล</p>
+            <input id="v3SchedTarget" placeholder="username ที่ต้องติดตาม" spellcheck="false">
+            <input id="v3SchedEmail" placeholder="อีเมล (ไม่บังคับ)" spellcheck="false">
+            <div class="btns">
+              <button onclick="v3SchedAdd()">Schedule</button>
+              <button class="ghost" onclick="v3SchedList()">List</button>
+            </div>
+            <div class="v3out" id="v3SchedOut"></div>
+          </div>
+
+          <div class="v3card">
+            <h3>Feed Monitor</h3>
+            <p class="desc">ตรวจ RSS/Atom feeds หาเป้าหมาย (BBC, NYT, ThaiPBS, Bangkok Post)</p>
+            <input id="v3FeedTarget" placeholder="คำที่ต้องการติดตาม" spellcheck="false">
+            <div class="btns"><button onclick="v3Feeds()">Check</button></div>
+            <div class="v3out" id="v3FeedOut"></div>
+          </div>
+
+        </div>
+      </div>
     </section>
 
     <aside class="side">
@@ -535,7 +719,7 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
   <form id="asstForm" autocomplete="off"><input id="asstIn" placeholder='เช่น "ตรวจ ice4564" หรือ "ทำไม GitHub"'><button class="btn" type="submit">ส่ง</button></form>
 </section>
 
-<script src="/static/common.js?v=2.0.0"></script>
+<script src="/static/common.js?v=3.0.0"></script>
 <script>
 const state = { results: new Map(), filter: "found", text: "", tags: new Set(), es: null, total: 0, sites: {},
                 identity: [], showAllId: false, usernames: [], connections: [], domains: [], graph: null, queries: [],
@@ -621,7 +805,7 @@ function start() {
     entities: [], contradictions: [], plan: [], replay: [], intel: null, runId: null,
     tabTouched: false, selected: null, started: new Date().toLocaleString("th-TH") });
   state.usernames = u.replace(/,/g, " ").split(/\s+/).filter(Boolean).map((x) => x.replace(/^@/, ""));
-  for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo", "replayList", "planList", "contraList"]) $(id).replaceChildren();
+  for (const id of ["grid", "discList", "domList", "clusterList", "idList", "connList", "changeList", "hitList", "fList", "tlList", "nodeInfo", "replayList", "planList", "contraList", "v3DorkOut", "v3IocOut", "v3ExportOut", "v3PrivacyOut", "v3ForensicsOut", "v3ArchiveOut", "v3InfraOut", "v3BehaviorOut", "v3PlaybookOut", "v3AutoInvOut", "v3NotesOut", "v3CustodyOut"]) $(id).replaceChildren();
   for (const id of ["disc", "identity", "connections", "domains", "clusters", "changesPanel", "hitsPanel", "planPanel", "contraBox"]) $(id).hidden = true;
   $("qbUser").value = state.usernames[0] || ""; updateQuery();
   $("overviewEmpty").hidden = false;
@@ -1506,6 +1690,313 @@ $("asstBtn").onclick = () => {
 };
 $("asstClose").onclick = () => { $("asst").hidden = true; $("asstBtn").setAttribute("aria-expanded", "false"); };
 $("asstForm").onsubmit = (e) => { e.preventDefault(); ask($("asstIn").value); $("asstIn").value = ""; };
+
+// ---- v3 Tools ----
+function getResults() { return [...state.results.values()]; }
+function v3Loading(id) { $(id).innerHTML = '<div class="v3note">กำลังทำงาน...</div>'; }
+function v3Err(id, e) { $(id).innerHTML = `<div class="v3note" style="color:var(--warn)">Error: ${e}</div>`; }
+
+async function v3Dorks() {
+  const t = $("v3DorkTarget").value.trim(); if (!t) return;
+  v3Loading("v3DorkOut");
+  try {
+    const r = await fetch(`/api/dorks?target=${encodeURIComponent(t)}`).then(r => r.json());
+    $("v3DorkOut").innerHTML = r.map(d => `<div class="row"><span class="tag">${d.category}</span> <a href="${d.url}" target="_blank" rel="noopener">${d.query}</a><br><span style="color:var(--muted);font-size:11px">${d.description}</span></div>`).join("");
+  } catch(e) { v3Err("v3DorkOut", e); }
+}
+
+async function v3Iocs() {
+  const t = $("v3IocText").value.trim(); if (!t) return;
+  v3Loading("v3IocOut");
+  try {
+    const r = await fetch(`/api/iocs?text=${encodeURIComponent(t)}`).then(r => r.json());
+    if (!r.length) { $("v3IocOut").innerHTML = '<div class="v3note">ไม่พบ IOC</div>'; return; }
+    const byType = {};
+    r.forEach(i => { (byType[i.type] = byType[i.type] || []).push(i.value); });
+    $("v3IocOut").innerHTML = Object.entries(byType).map(([type, vals]) =>
+      `<div class="row"><span class="tag">${type}</span> (${vals.length})<br>${vals.map(v => `&nbsp;&nbsp;${v}`).join("<br>")}</div>`).join("");
+  } catch(e) { v3Err("v3IocOut", e); }
+}
+
+async function v3Export(fmt) {
+  const results = getResults(); if (!results.length) { $("v3ExportOut").innerHTML = '<div class="v3note">ค้นก่อน แล้วกด export</div>'; return; }
+  v3Loading("v3ExportOut");
+  try {
+    const body = JSON.stringify({results, connections: state.connections || []});
+    const r = await fetch(`/api/${fmt}`, {method:"POST", headers:{"Content-Type":"application/json"}, body});
+    if (fmt === "maltego") { const xml = await r.text(); $("v3ExportOut").innerHTML = `<div class="row"><pre>${xml.substring(0,500)}...</pre></div>`; }
+    else { const data = await r.json(); $("v3ExportOut").innerHTML = `<div class="row"><pre>${JSON.stringify(data, null, 2).substring(0,800)}</pre></div>`; }
+  } catch(e) { v3Err("v3ExportOut", e); }
+}
+
+async function v3Privacy() {
+  const results = getResults(); if (!results.length) { $("v3PrivacyOut").innerHTML = '<div class="v3note">ค้นก่อน แล้วกด assess</div>'; return; }
+  v3Loading("v3PrivacyOut");
+  try {
+    const r = await fetch("/api/privacy", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results})}).then(r => r.json());
+    const score = r.score || 0; const pct = Math.max(0, Math.min(100, score));
+    const color = pct >= 70 ? "var(--high)" : pct >= 40 ? "var(--medium)" : "var(--ok)";
+    let h = `<div class="row"><span class="score" style="color:${color}">${score}</span>/100 — <b>${r.level}</b></div>`;
+    h += `<div class="pb"><div style="width:${pct}%;background:${color}"></div></div>`;
+    if (r.exposed_types?.length) h += `<div class="row"><b>ข้อมูลที่รั่ว:</b> ${r.exposed_types.join(", ")}</div>`;
+    if (r.factors?.length) h += r.factors.map(f => `<div class="row"><span class="tag ${f.severity === "high" ? "high" : f.severity === "medium" ? "med" : "low"}">${f.severity}</span> ${f.description} (+${f.points})<br><span style="color:var(--muted);font-size:11px">${f.remediation}</span></div>`).join("");
+    if (r.recommendations?.length) h += `<div class="row"><b>คำแนะนำ:</b><br>${r.recommendations.map(r => `&nbsp;&nbsp;• ${r}`).join("<br>")}</div>`;
+    $("v3PrivacyOut").innerHTML = h;
+  } catch(e) { v3Err("v3PrivacyOut", e); }
+}
+
+async function v3Remediation() {
+  const results = getResults();
+  v3Loading("v3PrivacyOut");
+  try {
+    const r = await fetch("/api/remediation", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results})}).then(r => r.json());
+    $("v3PrivacyOut").innerHTML = r.map(s => `<div class="row"><span class="tag">${s.priority || "INFO"}</span> ${s.issue || s.guide || ""}<br><span style="color:var(--muted);font-size:11px">${s.action || ""}</span></div>`).join("") || '<div class="v3note">ไม่มีคำแนะนำ</div>';
+  } catch(e) { v3Err("v3PrivacyOut", e); }
+}
+
+async function v3Forensics() {
+  const url = $("v3ForensicsUrl").value.trim(); if (!url) return;
+  v3Loading("v3ForensicsOut");
+  try {
+    const r = await fetch("/api/forensics", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({url})}).then(r => r.json());
+    let h = "";
+    for (const [k, v] of Object.entries(r)) {
+      if (k === "url" || k === "error") continue;
+      if (typeof v === "object") { h += `<div class="row"><b>${k}</b><br><pre>${JSON.stringify(v, null, 1).substring(0, 300)}</pre></div>`; }
+      else { h += `<div class="row"><b>${k}:</b> ${v}</div>`; }
+    }
+    if (r.error) h = `<div class="row" style="color:var(--warn)">${r.error}</div>` + h;
+    $("v3ForensicsOut").innerHTML = h || '<div class="v3note">ไม่มีผล</div>';
+  } catch(e) { v3Err("v3ForensicsOut", e); }
+}
+
+async function v3Archive() {
+  const url = $("v3ArchiveUrl").value.trim(); if (!url) return;
+  v3Loading("v3ArchiveOut");
+  try {
+    const r = await fetch(`/api/archive?url=${encodeURIComponent(url)}`).then(r => r.json());
+    let h = "";
+    if (r.total_snapshots !== undefined) h += `<div class="row"><b>Wayback:</b> ${r.total_snapshots} snapshots</div>`;
+    if (r.earliest) h += `<div class="row">เก่าสุด: <a href="${r.earliest.url}" target="_blank" rel="noopener">${r.earliest.date}</a></div>`;
+    if (r.latest) h += `<div class="row">ใหม่สุด: <a href="${r.latest.url}" target="_blank" rel="noopener">${r.latest.date}</a></div>`;
+    if (r.archive_today_url) h += `<div class="row"><b>archive.today:</b> <a href="${r.archive_today_url}" target="_blank" rel="noopener">มี</a></div>`;
+    if (r.google_cache_url) h += `<div class="row"><b>Google Cache:</b> <a href="${r.google_cache_url}" target="_blank" rel="noopener">มี</a></div>`;
+    if (r.wayback_url) h += `<div class="row"><b>Wayback URL:</b> <a href="${r.wayback_url}" target="_blank" rel="noopener">เปิด</a></div>`;
+    if (r.error) h += `<div class="row" style="color:var(--warn)">Error: ${r.error}</div>`;
+    if (!h) h = '<div class="v3note">ไม่พบในอาร์ไคฟ์</div>';
+    $("v3ArchiveOut").innerHTML = h;
+  } catch(e) { v3Err("v3ArchiveOut", e); }
+}
+
+async function v3Infra() {
+  const d = $("v3InfraDomain").value.trim(); if (!d) return;
+  v3Loading("v3InfraOut");
+  try {
+    const r = await fetch(`/api/infra?domain=${encodeURIComponent(d)}`).then(r => r.json());
+    let h = "";
+    if (r.ct_records?.length) h += `<div class="row"><b>CT Logs:</b> ${r.ct_records.length} รายการ</div>`;
+    if (r.subdomains?.length) h += `<div class="row"><b>ซับโดเมน:</b> ${r.subdomains.slice(0,10).join(", ") || "ไม่พบ"}</div>`;
+    if (r.dns?.length) h += `<div class="row"><b>DNS:</b> ${r.dns.slice(0,5).map(x => x.record || x.type || JSON.stringify(x).substring(0,50)).join(", ")}</div>`;
+    if (r.whois) h += `<div class="row"><b>WHOIS:</b><br><pre>${JSON.stringify(r.whois, null, 1).substring(0, 300)}</pre></div>`;
+    if (!h) h = '<div class="v3note">ไม่พบข้อมูล</div>';
+    $("v3InfraOut").innerHTML = h;
+  } catch(e) { v3Err("v3InfraOut", e); }
+}
+
+async function v3Behavior() {
+  const results = getResults().filter(r => r.status === "found");
+  if (!results.length) { $("v3BehaviorOut").innerHTML = '<div class="v3note">ค้นแล้วพบบัญชีก่อน</div>'; return; }
+  const texts = results.map(r => r.info?.bio || "").filter(Boolean);
+  const timestamps = results.map(r => r.info?.created || "").filter(Boolean);
+  if (!texts.length) { $("v3BehaviorOut").innerHTML = '<div class="v3note">ไม่มีข้อความในโปรไฟล์</div>'; return; }
+  v3Loading("v3BehaviorOut");
+  try {
+    const r = await fetch("/api/behavior", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({texts, timestamps})}).then(r => r.json());
+    let h = "";
+    if (r.timezone) h += `<div class="row"><b>Timezone:</b> ${r.timezone.guess || "?"} (conf ${r.timezone.confidence || 0}%)</div>`;
+    if (r.writing_style) h += `<div class="row"><b>ตัวเขียน:</b> ${r.writing_style.avg_word_length?.toFixed(1) || "?"} ตัวอักษร/คำ</div>`;
+    if (r.emoji) h += `<div class="row"><b>Emoji:</b> ${r.emoji.unique_count || 0} ชนิด, ${(r.emoji.density || 0).toFixed(2)} per text</div>`;
+    if (r.interests?.length) h += `<div class="row"><b>สนใจ:</b> ${r.interests.slice(0,10).join(", ")}</div>`;
+    if (!h) h = '<div class="v3note">วิเคราะห์ไม่ได้</div>';
+    $("v3BehaviorOut").innerHTML = h;
+  } catch(e) { v3Err("v3BehaviorOut", e); }
+}
+
+async function v3Playbooks() {
+  v3Loading("v3PlaybookOut");
+  try {
+    const r = await fetch("/api/playbooks").then(r => r.json());
+    const pbs = r.playbooks || [];
+    let h = pbs.map(p => `<div class="row"><span class="tag">${p.category}</span> <b>${p.name}</b><br><span style="color:var(--muted);font-size:11px">${p.description?.substring(0,80)}</span><br><span style="font-size:11px">${p.steps || p.step_count || 0} steps</span></div>`).join("");
+    $("v3PlaybookOut").innerHTML = h || '<div class="v3note">ไม่พบ playbook</div>';
+  } catch(e) { v3Err("v3PlaybookOut", e); }
+}
+
+async function v3AutoInv() {
+  const results = getResults(); if (!results.length) { $("v3AutoInvOut").innerHTML = '<div class="v3note">ค้นก่อน</div>'; return; }
+  v3Loading("v3AutoInvOut");
+  try {
+    const r = await fetch("/api/auto-investigate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results})}).then(r => r.json());
+    const steps = r.steps || [];
+    let h = steps.map((s, i) => `<div class="row"><b>${i+1}.</b> [P${s.priority}] ${s.action}<br><span style="color:var(--muted);font-size:11px">${s.reason}</span></div>`).join("");
+    if (r.summary) h += `<div class="v3note">${r.summary.total_steps || steps.length} steps, ${r.summary.completed || 0} done</div>`;
+    $("v3AutoInvOut").innerHTML = h || '<div class="v3note">ไม่ต้องตรวจต่อ</div>';
+  } catch(e) { v3Err("v3AutoInvOut", e); }
+}
+
+async function v3NotesLoad() {
+  const cid = $("v3NotesCase").value.trim() || "default";
+  v3Loading("v3NotesOut");
+  try {
+    const r = await fetch(`/api/notes?case_id=${encodeURIComponent(cid)}`).then(r => r.json());
+    const notes = r.notes || r || [];
+    if (!Array.isArray(notes) || !notes.length) { $("v3NotesOut").innerHTML = '<div class="v3note">ไม่มีบันทึก</div>'; return; }
+    $("v3NotesOut").innerHTML = notes.map(n => `<div class="row">${n.pinned ? "📌 " : ""}<b>${n.author}</b>: ${n.content?.substring(0,100) || ""}<br><span style="font-size:11px;color:var(--muted)">${(n.created||"").substring(0,16)}</span></div>`).join("");
+  } catch(e) { v3Err("v3NotesOut", e); }
+}
+
+async function v3NotesAdd() {
+  const cid = $("v3NotesCase").value.trim() || "default";
+  const content = prompt("พิมพ์บันทึก:"); if (!content) return;
+  const author = prompt("ชื่อผู้บันทึก:", "investigator"); if (!author) return;
+  try {
+    await fetch("/api/notes", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({case_id: cid, author, content})});
+    v3NotesLoad();
+  } catch(e) { v3Err("v3NotesOut", e); }
+}
+
+async function v3Custody() {
+  const cid = $("v3CustodyCase").value.trim() || "default";
+  v3Loading("v3CustodyOut");
+  try {
+    const r = await fetch(`/api/custody?case_id=${encodeURIComponent(cid)}`).then(r => r.json());
+    const chain = r.chain || r.entries || [];
+    if (!Array.isArray(chain) || !chain.length) { $("v3CustodyOut").innerHTML = '<div class="v3note">ไม่มีบันทึก</div>'; return; }
+    let h = chain.map(e => `<div class="row"><b>${e.actor || "?"}</b> — ${e.action || "?"}<br><span style="font-size:11px;color:var(--muted)">${(e.timestamp||"").substring(0,19)}</span><br><span style="font-size:11px">${e.detail || ""}</span></div>`).join("");
+    if (r.verification) h += `<div class="v3note">Integrity: ${r.verification.valid ? "OK" : "FAIL"}</div>`;
+    $("v3CustodyOut").innerHTML = h;
+  } catch(e) { v3Err("v3CustodyOut", e); }
+}
+
+// ---- v3: Deep Search ----
+async function v3DeepSearch() {
+  const t = $("v3DeepTarget").value.trim(); if (!t) return;
+  v3Loading("v3DeepOut");
+  try {
+    const r = await fetch(`/api/deepsearch?target=${encodeURIComponent(t)}`).then(r => r.json());
+    let h = "";
+    // Dorks
+    if (r.dorks?.length) {
+      h += `<div class="row"><b>Google Dorks:</b> ${r.dorks.length} คำค้น</div>`;
+      h += r.dorks.slice(0,5).map(d => `<div class="row"><span class="tag">${d.category}</span> <a href="${d.url}" target="_blank" rel="noopener">${d.query}</a></div>`).join("");
+    }
+    // Reddit
+    if (r.reddit?.length) {
+      h += `<div class="row"><b>Reddit:</b> ${r.reddit.length} ผล</div>`;
+      h += r.reddit.slice(0,5).map(x => `<div class="row"><a href="${x.url||x.permalink||"#"}" target="_blank" rel="noopener">${x.title||x.author||"?"}</a><br><span style="font-size:11px;color:var(--muted)">${(x.snippet||"").substring(0,80)}</span></div>`).join("");
+    }
+    // 4chan
+    if (r.chan?.length) {
+      h += `<div class="row"><b>4chan:</b> ${r.chan.length} ผล</div>`;
+      h += r.chan.slice(0,3).map(x => `<div class="row">${x.title||x.sub||"?"}<br><a href="${x.url||"#"}" target="_blank" rel="noopener" style="font-size:11px">link</a></div>`).join("");
+    }
+    // GitHub
+    if (r.github_code?.length) {
+      h += `<div class="row"><b>GitHub Code:</b> ${r.github_code.length} ผล</div>`;
+      h += r.github_code.slice(0,5).map(x => `<div class="row"><a href="${x.html_url||x.url||"#"}" target="_blank" rel="noopener">${x.repository?.full_name||x.repo||"?"}</a><br><span style="font-size:11px;color:var(--muted)">${(x.fragment||"").substring(0,80)}</span></div>`).join("");
+    }
+    if (r.github_users?.length) {
+      h += `<div class="row"><b>GitHub Users:</b> ${r.github_users.length} ผล</div>`;
+      h += r.github_users.slice(0,3).map(x => `<div class="row"><a href="${x.html_url||"#"}" target="_blank" rel="noopener">${x.login||"?"}</a> (${x.name||""})</div>`).join("");
+    }
+    // GitLab
+    if (r.gitlab?.length) h += `<div class="row"><b>GitLab:</b> ${r.gitlab.length} ผล</div>` + r.gitlab.slice(0,3).map(x => `<div class="row">${x.name||"?"}</div>`).join("");
+    // Pastebin
+    if (r.pastebin?.length) {
+      h += `<div class="row"><b>Pastebin:</b> ${r.pastebin.length} ผล</div>`;
+      h += r.pastebin.slice(0,5).map(x => `<div class="row"><a href="${x.url||"#"}" target="_blank" rel="noopener">${x.title||"paste"}</a></div>`).join("");
+    }
+    // Academic
+    if (r.academic?.length) {
+      h += `<div class="row"><b>Academic (ORCID):</b> ${r.academic.length} ผล</div>`;
+      h += r.academic.slice(0,3).map(x => `<div class="row">${x.name||x.given_name||"?"} ${x.family_name||""}<br><span style="font-size:11px;color:var(--muted)">${x.orcid||""}</span></div>`).join("");
+    }
+    if (!h) h = '<div class="v3note">ไม่พบผล</div>';
+    $("v3DeepOut").innerHTML = h;
+  } catch(e) { v3Err("v3DeepOut", e); }
+}
+
+// ---- v3: Network Graph ----
+async function v3Graph() {
+  const results = getResults(); if (!results.length) { $("v3GraphOut").innerHTML = '<div class="v3note">ค้นก่อน แล้วกด build graph</div>'; return; }
+  v3Loading("v3GraphOut");
+  try {
+    const body = JSON.stringify({results, connections: state.connections || []});
+    const r = await fetch("/api/graph", {method:"POST", headers:{"Content-Type":"application/json"}, body}).then(r => r.json());
+    let h = `<div class="row"><b>Nodes:</b> ${r.nodes?.length||0} | <b>Edges:</b> ${r.edges?.length||0}</div>`;
+    if (r.nodes?.length) {
+      h += `<div class="row" style="margin-top:6px"><b>โหนดหลัก:</b></div>`;
+      h += r.nodes.slice(0,10).map(n => `<div class="row"><span class="tag">${n.group||n.type||"?"}</span> ${n.label||n.id||"?"}</div>`).join("");
+    }
+    h += `<div class="row"><button class="ghost" onclick="window.open('/graph','_blank')">เปิดกราฟเต็มหน้า →</button></div>`;
+    $("v3GraphOut").innerHTML = h;
+  } catch(e) { v3Err("v3GraphOut", e); }
+}
+
+// ---- v3: Annotations ----
+async function v3AnnoLoad() {
+  const key = $("v3AnnoKey").value.trim(); if (!key) { $("v3AnnoOut").innerHTML = '<div class="v3note">กรอก result key ก่อน</div>'; return; }
+  v3Loading("v3AnnoOut");
+  try {
+    const r = await fetch(`/api/annotations?result_key=${encodeURIComponent(key)}`).then(r => r.json());
+    const annos = Array.isArray(r) ? r : (r.annotations || []);
+    if (!annos.length) { $("v3AnnoOut").innerHTML = '<div class="v3note">ไม่มี annotation</div>'; return; }
+    $("v3AnnoOut").innerHTML = annos.map(a => `<div class="row"><b>${a.author||"?"}</b>: ${a.note||""}<br>${(a.tags||[]).map(t=>`<span class="tag">${t}</span>`).join("")} <span style="font-size:11px;color:var(--muted)">conf:${a.confidence||0}</span></div>`).join("");
+  } catch(e) { v3Err("v3AnnoOut", e); }
+}
+
+async function v3AnnoTags() {
+  v3Loading("v3AnnoOut");
+  try {
+    const r = await fetch(`/api/annotations`).then(r => r.json());
+    const tags = r.tags || [];
+    $("v3AnnoOut").innerHTML = `<div class="row"><b>Available tags:</b></div>` + tags.map(t => `<div class="row"><span class="tag">${t}</span></div>`).join("") || '<div class="v3note">ไม่มี tag</div>';
+  } catch(e) { v3Err("v3AnnoOut", e); }
+}
+
+// ---- v3: Schedules ----
+async function v3SchedAdd() {
+  const target = $("v3SchedTarget").value.trim(); if (!target) return;
+  const email = $("v3SchedEmail").value.trim();
+  const interval = parseInt(prompt("ทุกกี่ชม. สแกน? (default 24):", "24") || "24", 10);
+  v3Loading("v3SchedOut");
+  try {
+    await fetch("/api/schedules", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({target, interval, email})});
+    v3SchedList();
+  } catch(e) { v3Err("v3SchedOut", e); }
+}
+
+async function v3SchedList() {
+  v3Loading("v3SchedOut");
+  try {
+    const r = await fetch("/api/schedules").then(r => r.json());
+    const items = Array.isArray(r) ? r : (r.schedules || []);
+    if (!items.length) { $("v3SchedOut").innerHTML = '<div class="v3note">ไม่มี scheduled scan</div>'; return; }
+    $("v3SchedOut").innerHTML = items.map(s => `<div class="row"><b>${s.target||"?"}</b> — ทุก ${s.interval_hours||24} ชม.<br><span style="font-size:11px;color:var(--muted)">${s.email||"ไม่มีอีเมล"} | last: ${s.last_run||"ยังไม่รัน"} | ${s.active?"active":"inactive"}</span></div>`).join("");
+  } catch(e) { v3Err("v3SchedOut", e); }
+}
+
+// ---- v3: Feeds ----
+async function v3Feeds() {
+  const t = $("v3FeedTarget").value.trim(); if (!t) return;
+  v3Loading("v3FeedOut");
+  try {
+    const r = await fetch(`/api/feeds?target=${encodeURIComponent(t)}`).then(r => r.json());
+    const items = Array.isArray(r) ? r : (r.mentions || []);
+    if (!items.length) { $("v3FeedOut").innerHTML = '<div class="v3note">ไม่พบเป้าหมายใน feeds</div>'; return; }
+    $("v3FeedOut").innerHTML = items.map(m => `<div class="row"><b>${m.feed_name||m.feed||"?"}</b><br><a href="${m.link||m.url||"#"}" target="_blank" rel="noopener">${m.title||"?"}</a><br><span style="font-size:11px;color:var(--muted)">${(m.published||"").substring(0,16)}</span></div>`).join("");
+  } catch(e) { v3Err("v3FeedOut", e); }
+}
 
 init().then(() => {
   const run = new URLSearchParams(location.search).get("run");

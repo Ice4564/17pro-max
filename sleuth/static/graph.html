@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sleuth — Network Graph</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
+<script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="/static/theme.css?v=3.0.0">
+<style>
+body { margin:0; padding:0; overflow:hidden; }
+.toolbar { position:fixed; top:0; left:0; right:0; z-index:10; display:flex; align-items:center; gap:12px; padding:10px 16px; background:color-mix(in srgb, var(--panel) 92%, transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(8px); }
+.toolbar h1 { font-size:16px; margin:0; font-family:var(--mono); }
+.toolbar .spacer { flex:1; }
+.toolbar button, .toolbar select { font-family:var(--mono); font-size:13px; padding:6px 12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); border-radius:7px; cursor:pointer; }
+.toolbar button:hover { border-color:var(--accent); }
+#graph { width:100vw; height:100vh; }
+.legend { position:fixed; bottom:16px; left:16px; z-index:10; background:color-mix(in srgb, var(--panel) 92%, transparent); border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; }
+.legend .item { display:flex; align-items:center; gap:8px; margin:4px 0; }
+.legend .dot { width:12px; height:12px; border-radius:50%; }
+.info-panel { position:fixed; bottom:16px; right:16px; z-index:10; width:300px; max-height:300px; overflow-y:auto; background:color-mix(in srgb, var(--panel) 92%, transparent); border:1px solid var(--line); border-radius:10px; padding:14px; font-size:13px; display:none; }
+.info-panel.show { display:block; }
+.info-panel h3 { margin:0 0 8px; font-size:14px; }
+.info-panel .row { margin:3px 0; color:var(--muted); }
+.info-panel .row b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1>> SLEUTH GRAPH</h1>
+  <select id="runSelect"><option value="">— Select Run —</option></select>
+  <button onclick="loadGraph()">Load</button>
+  <button onclick="toggleTheme()">Theme</button>
+  <div class="spacer"></div>
+  <span id="stats" style="font-size:13px;color:var(--muted);"></span>
+</div>
+<svg id="graph"></svg>
+<div class="legend">
+  <div class="item"><div class="dot" style="background:#2f6fed"></div> Account</div>
+  <div class="item"><div class="dot" style="background:#14804a"></div> Identity (Name)</div>
+  <div class="item"><div class="dot" style="background:#b45309"></div> Email</div>
+  <div class="item"><div class="dot" style="background:#7a3fd1"></div> Domain/Website</div>
+  <div class="item"><div class="dot" style="background:#c0262d"></div> Phone</div>
+  <div class="item"><div class="dot" style="background:#dc2626"></div> Crypto</div>
+  <div class="item"><div class="dot" style="background:#6b7280"></div> Location</div>
+</div>
+<div class="info-panel" id="infoPanel">
+  <h3 id="infoTitle"></h3>
+  <div id="infoBody"></div>
+</div>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const COLORS = {account:"#2f6fed", identity:"#14804a", email:"#b45309", domain:"#7a3fd1", phone:"#c0262d", crypto:"#dc2626", location:"#6b7280"};
+let svg, g, linkGroup, nodeGroup, simulation;
+
+function init() {
+  const w = window.innerWidth, h = window.innerHeight;
+  svg = d3.select("#graph").attr("viewBox", [0, 0, w, h]);
+  g = svg.append("g");
+  linkGroup = g.append("g").attr("class", "links");
+  nodeGroup = g.append("g").attr("class", "nodes");
+  svg.call(d3.zoom().scaleExtent([0.2, 5]).on("zoom", e => g.attr("transform", e.transform)));
+  simulation = d3.forceSimulation()
+    .force("link", d3.forceLink().id(d => d.id).distance(80).strength(0.3))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(w / 2, h / 2))
+    .force("collision", d3.forceCollide().radius(35));
+}
+
+async function loadRuns() {
+  try {
+    const r = await fetch("/api/runs");
+    const runs = await r.json();
+    const sel = document.getElementById("runSelect");
+    runs.forEach(run => {
+      const opt = document.createElement("option");
+      opt.value = run.id;
+      opt.textContent = `${run.id}: ${run.target} (${run.found||0} found)`;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function loadGraph() {
+  const runId = document.getElementById("runSelect").value;
+  if (!runId) return;
+  const r = await fetch(`/api/runs/${runId}`);
+  const run = await r.json();
+  const results = run.results || [];
+  const resp = await fetch("/api/graph", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({results, connections: run.connections || []})
+  });
+  const data = await resp.json();
+  render(data);
+}
+
+function render(data) {
+  document.getElementById("stats").textContent = `${data.nodes.length} nodes · ${data.links.length} edges`;
+  linkGroup.selectAll("*").remove();
+  nodeGroup.selectAll("*").remove();
+
+  const link = linkGroup.selectAll("line").data(data.links).join("line")
+    .attr("stroke", "var(--line)").attr("stroke-width", d => Math.max(1, d.weight))
+    .attr("stroke-opacity", 0.6);
+
+  const node = nodeGroup.selectAll("g").data(data.nodes).join("g")
+    .call(d3.drag()
+      .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+  node.append("circle").attr("r", 12).attr("fill", d => COLORS[d.type] || "#999")
+    .attr("stroke", "var(--panel)").attr("stroke-width", 2);
+  node.append("text").text(d => d.label.substring(0, 20)).attr("x", 16).attr("y", 4)
+    .attr("font-size", "11px").attr("fill", "var(--text)").attr("font-family", "monospace");
+
+  node.on("click", (e, d) => {
+    const panel = document.getElementById("infoPanel");
+    document.getElementById("infoTitle").textContent = d.label;
+    let html = "";
+    html += `<div class="row"><b>Type:</b> ${d.type}</div>`;
+    if (d.url) html += `<div class="row"><b>URL:</b> <a href="${d.url}" target="_blank">${d.url}</a></div>`;
+    if (d.properties) for (const [k, v] of Object.entries(d.properties)) {
+      if (v) html += `<div class="row"><b>${k}:</b> ${v}</div>`;
+    }
+    document.getElementById("infoBody").innerHTML = html;
+    panel.classList.add("show");
+  });
+
+  simulation.nodes(data.nodes);
+  simulation.force("link").links(data.links);
+  simulation.on("tick", () => {
+    link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("sleuth-theme", next);
+}
+
+init();
+loadRuns();
+</script>
+</body>
+</html>

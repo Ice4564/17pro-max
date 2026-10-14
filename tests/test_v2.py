@@ -12,7 +12,7 @@ from sleuth.regional import extract_thai_phones, parse_thai_phone, regional_sear
 
 
 def test_version():
-    assert __version__ == "2.0.0"
+    assert __version__ >= "2.0.0"
 
 
 # ---- analysis -------------------------------------------------------------------

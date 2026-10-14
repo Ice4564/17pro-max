@@ -193,6 +193,7 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
     app.router.add_static("/static", STATIC)
     add_scan_routes(app)
     add_workspace_routes(app)
+    add_v3_routes(app)
     return app
 
 
@@ -458,6 +459,292 @@ def add_scan_routes(app: web.Application) -> None:
     app.router.add_get(r"/api/scans/{id:\d+}", scan_detail)
     app.router.add_delete(r"/api/scans/{id:\d+}", scan_delete)
     app.router.add_get(r"/api/scans/{id:\d+}/report.{fmt}", scan_report_view)
+
+
+def add_v3_routes(app: web.Application) -> None:
+    """v3.0 endpoints: dorks, IOCs, STIX/MISP/Maltego, privacy, graph, timeline,
+    geo, playbooks, forensics, behavior, auto-investigate, schedules, notes,
+    annotations, custody."""
+
+    async def dorks(request: web.Request) -> web.Response:
+        from .deepsearch import build_dorks
+        target = request.query.get("target", "")
+        if not target:
+            raise web.HTTPBadRequest(text="missing ?target=")
+        return web.json_response([{"query": d.query, "url": d.url, "category": d.category,
+                                   "description": d.description} for d in build_dorks(target)])
+
+    async def iocs(request: web.Request) -> web.Response:
+        from .threatintel import extract_iocs
+        text = request.query.get("text", "")
+        if not text:
+            raise web.HTTPBadRequest(text="missing ?text=")
+        return web.json_response(extract_iocs(text))
+
+    async def stix_export(request: web.Request) -> web.Response:
+        from .threatintel import to_stix
+        import json as _json
+        data = await request.json()
+        return web.json_response(to_stix(data.get("results", [])))
+
+    async def misp_export(request: web.Request) -> web.Response:
+        from .threatintel import to_misp
+        data = await request.json()
+        return web.json_response(to_misp(data.get("results", [])))
+
+    async def maltego_export(request: web.Request) -> web.Response:
+        from .threatintel import to_maltego
+        data = await request.json()
+        xml = to_maltego(data.get("results", []), data.get("connections"))
+        return web.Response(text=xml, content_type="application/xml")
+
+    async def privacy(request: web.Request) -> web.Response:
+        from .counter import assess_privacy_risk, check_footprint
+        data = await request.json()
+        results = data.get("results", [])
+        risk = assess_privacy_risk(results)
+        footprint = check_footprint(results)
+        return web.json_response({
+            "score": risk.score, "level": risk.level,
+            "factors": [{"category": f.category, "severity": f.severity,
+                         "description": f.description, "remediation": f.remediation,
+                         "points": f.points} for f in risk.factors],
+            "recommendations": risk.recommendations,
+            "exposed_types": risk.exposed_data_types,
+            "footprint": {"accounts": footprint.accounts_found,
+                           "platforms": footprint.platforms,
+                           "data_exposed": footprint.data_exposed,
+                           "summary": footprint.summary},
+        })
+
+    async def remediation(request: web.Request) -> web.Response:
+        from .counter import generate_remediation_plan
+        data = await request.json()
+        plan = generate_remediation_plan(data.get("results", []))
+        return web.json_response(plan)
+
+    async def graph(request: web.Request) -> web.FileResponse:
+        return web.FileResponse(STATIC / "graph.html", headers={"Cache-Control": "no-cache"})
+
+    async def graph_data(request: web.Request) -> web.Response:
+        from .viz import build_network_graph
+        data = await request.json()
+        g = build_network_graph(data.get("results", []),
+                                data.get("connections"),
+                                data.get("intel"))
+        return web.json_response(g)
+
+    async def timeline_data(request: web.Request) -> web.Response:
+        from .viz import build_timeline
+        data = await request.json()
+        tl = build_timeline(data.get("results", []), data.get("connections"))
+        return web.json_response(tl)
+
+    async def geo_data(request: web.Request) -> web.Response:
+        from .viz import build_geo_data
+        data = await request.json()
+        points = build_geo_data(data.get("results", []), data.get("geo_info"))
+        return web.json_response(points)
+
+    async def dashboard(request: web.Request) -> web.Response:
+        from .viz import build_dashboard_data
+        data = await request.json()
+        dash = build_dashboard_data(data.get("results", []),
+                                    data.get("connections"),
+                                    data.get("intel"))
+        return web.json_response(dash)
+
+    async def playbooks(_: web.Request) -> web.Response:
+        from .casemgmt import list_playbooks, ResultAnnotations
+        return web.json_response({
+            "playbooks": list_playbooks(),
+            "tags": ResultAnnotations.available_tags(),
+        })
+
+    async def playbook(request: web.Request) -> web.Response:
+        from .casemgmt import get_playbook
+        pb = get_playbook(request.match_info["category"])
+        if not pb:
+            raise web.HTTPNotFound(text="playbook not found")
+        return web.json_response({
+            "name": pb.name, "category": pb.category, "description": pb.description,
+            "legal_notes": pb.legal_notes,
+            "steps": [{"step": s.step, "title": s.title, "description": s.description,
+                       "tools": s.tools, "expected_output": s.expected_output} for s in pb.steps],
+        })
+
+    async def forensics(request: web.Request) -> web.Response:
+        from .forensics import analyze_avatar
+        data = await request.json()
+        url = data.get("url", "")
+        if not url:
+            raise web.HTTPBadRequest(text="missing url")
+        from .engine import make_session, SearchConfig
+        async with make_session(SearchConfig()) as session:
+            result = await analyze_avatar(session, url)
+        return web.json_response({k: (v.__dict__ if hasattr(v, "__dict__") else v)
+                                 for k, v in result.items() if not isinstance(v, (str,))},
+                                dumps=lambda x: __import__("json").dumps(x, default=str))
+
+    async def behavior(request: web.Request) -> web.Response:
+        from .behavior import build_behavioral_profile
+        data = await request.json()
+        texts = data.get("texts", [])
+        timestamps = data.get("timestamps", [])
+        profile = build_behavioral_profile(texts, timestamps)
+        # Convert dataclasses to dicts
+        def _to_dict(obj):
+            if hasattr(obj, "__dict__"):
+                return {k: _to_dict(v) for k, v in obj.__dict__.items()}
+            if isinstance(obj, list):
+                return [_to_dict(x) for x in obj]
+            return obj
+        return web.json_response({k: _to_dict(v) for k, v in profile.items()})
+
+    async def auto_investigate(request: web.Request) -> web.Response:
+        from .realtime import AutoInvestigator
+        data = await request.json()
+        ai = AutoInvestigator()
+        plan = ai.plan(data.get("results", []))
+        return web.json_response({
+            "steps": [{"action": s.action, "target": s.target, "reason": s.reason,
+                       "priority": s.priority, "status": s.status} for s in plan],
+            "summary": ai.get_summary(),
+        })
+
+    async def schedules(request: web.Request) -> web.Response:
+        from .realtime import scan_scheduler
+        if request.method == "POST":
+            data = await request.json()
+            scan_scheduler.add(data.get("target", ""), int(data.get("interval", 24)),
+                              data.get("email"))
+            return web.json_response({"status": "added"})
+        return web.json_response(scan_scheduler.list_schedules())
+
+    async def notes(request: web.Request) -> web.Response:
+        from .casemgmt import CaseNotes
+        cn = CaseNotes()
+        if request.method == "POST":
+            data = await request.json()
+            note_id = cn.add(data.get("case_id", "default"), data.get("author", "anonymous"),
+                             data.get("content", ""), data.get("tags"),
+                             data.get("pinned", False))
+            return web.json_response({"id": note_id})
+        case_id = request.query.get("case_id", "default")
+        return web.json_response(cn.get_notes(case_id))
+
+    async def annotations(request: web.Request) -> web.Response:
+        from .casemgmt import ResultAnnotations
+        ra = ResultAnnotations()
+        if request.method == "POST":
+            data = await request.json()
+            anno_id = ra.annotate(data.get("result_key", ""), data.get("author", ""),
+                                  data.get("note", ""), data.get("tags"),
+                                  int(data.get("confidence", 0)),
+                                  data.get("case_id", "default"))
+            return web.json_response({"id": anno_id})
+        result_key = request.query.get("result_key", "")
+        if result_key:
+            return web.json_response(ra.get_annotations(result_key))
+        return web.json_response({"tags": ResultAnnotations.available_tags()})
+
+    async def custody(request: web.Request) -> web.Response:
+        from .casemgmt import ChainOfCustody
+        coc = ChainOfCustody()
+        if request.method == "POST":
+            data = await request.json()
+            coc.log(data.get("case_id", ""), data.get("action", ""),
+                    data.get("actor", ""), data.get("evidence_id", ""),
+                    data.get("description", ""))
+            return web.json_response({"status": "logged"})
+        case_id = request.query.get("case_id", "")
+        if case_id:
+            return web.json_response(coc.get_chain(case_id))
+        raise web.HTTPBadRequest(text="missing ?case_id=")
+
+    async def archive_check(request: web.Request) -> web.Response:
+        from .archive import check_archives, wayback_url
+        url = request.query.get("url", "")
+        if not url:
+            raise web.HTTPBadRequest(text="missing ?url=")
+        from .engine import make_session, SearchConfig
+        async with make_session(SearchConfig()) as session:
+            result = await check_archives(session, url)
+        return web.json_response({
+            "url": result.url,
+            "total_snapshots": result.total_snapshots,
+            "earliest": {"date": result.earliest.display_date, "url": result.earliest.snapshot_url}
+                        if result.earliest else None,
+            "latest": {"date": result.latest.display_date, "url": result.latest.snapshot_url}
+                      if result.latest else None,
+            "archive_today_url": result.archive_today_url,
+            "google_cache_url": result.google_cache_url,
+            "wayback_url": wayback_url(url),
+        })
+
+    async def infra_scan(request: web.Request) -> web.Response:
+        from .infra_intel import infra_scan, is_valid_domain
+        domain = request.query.get("domain", "")
+        if not domain or not is_valid_domain(domain):
+            raise web.HTTPBadRequest(text="missing or invalid ?domain=")
+        from .engine import make_session, SearchConfig
+        async with make_session(SearchConfig()) as session:
+            result = await infra_scan(session, domain)
+        # Convert dataclasses to dicts
+        def _to_dict(obj):
+            if hasattr(obj, "__dict__"):
+                return {k: _to_dict(v) for k, v in obj.__dict__.items()}
+            if isinstance(obj, list):
+                return [_to_dict(x) for x in obj]
+            return obj
+        return web.json_response(_to_dict(result))
+
+    async def deepsearch(request: web.Request) -> web.Response:
+        from .deepsearch import deep_search
+        target = request.query.get("target", "")
+        if not target:
+            raise web.HTTPBadRequest(text="missing ?target=")
+        from .engine import make_session, SearchConfig
+        async with make_session(SearchConfig()) as session:
+            result = await deep_search(session, target)
+        return web.json_response(result, dumps=lambda x: __import__("json").dumps(x, default=str))
+
+    async def feeds(request: web.Request) -> web.Response:
+        from .realtime import monitor_feeds
+        target = request.query.get("target", "")
+        if not target:
+            raise web.HTTPBadRequest(text="missing ?target=")
+        from .engine import make_session, SearchConfig
+        async with make_session(SearchConfig()) as session:
+            result = await monitor_feeds(session, target)
+        return web.json_response(result)
+
+    # Register routes
+    app.router.add_get("/api/dorks", dorks)
+    app.router.add_get("/api/iocs", iocs)
+    app.router.add_get("/api/deepsearch", deepsearch)
+    app.router.add_get("/api/feeds", feeds)
+    app.router.add_post("/api/stix", stix_export)
+    app.router.add_post("/api/misp", misp_export)
+    app.router.add_post("/api/maltego", maltego_export)
+    app.router.add_post("/api/privacy", privacy)
+    app.router.add_post("/api/remediation", remediation)
+    app.router.add_get("/graph", graph)
+    app.router.add_post("/api/graph", graph_data)
+    app.router.add_post("/api/timeline", timeline_data)
+    app.router.add_post("/api/geo", geo_data)
+    app.router.add_post("/api/dashboard", dashboard)
+    app.router.add_get("/api/playbooks", playbooks)
+    app.router.add_get("/api/playbook/{category}", playbook)
+    app.router.add_post("/api/forensics", forensics)
+    app.router.add_post("/api/behavior", behavior)
+    app.router.add_post("/api/auto-investigate", auto_investigate)
+    app.router.add_route("*", "/api/schedules", schedules)
+    app.router.add_route("*", "/api/notes", notes)
+    app.router.add_route("*", "/api/annotations", annotations)
+    app.router.add_route("*", "/api/custody", custody)
+    app.router.add_get("/api/archive", archive_check)
+    app.router.add_get("/api/infra", infra_scan)
 
 
 def serve(host: str = "127.0.0.1", port: int = 8787, db: str | None = None, open_browser: bool = True) -> None:

@@ -10,7 +10,7 @@ import sys
 import unicodedata
 
 from . import __version__
-from .cli import C, run_scan_cli, run_search
+from .cli import C, run_scan_cli, run_search, run_v3_cli
 
 LOGO = [
     r"   ____  _            _   _     ",
@@ -21,13 +21,23 @@ LOGO = [
 ]
 GRADIENT = ("38;5;51", "38;5;45", "38;5;39", "38;5;33", "38;5;27")  # cyan -> blue
 ACCENT = "38;5;45"
-BOX_WIDTH = 62
+BOX_WIDTH = 76
 
 MENU = [
     ("1", "เว็บ", "เปิดหน้าเว็บ Web UI ใช้งานง่ายที่สุด"),
     ("2", "คน", "ค้น username บนเกือบ 100 เว็บ + ตามลิงก์ต่อ"),
     ("3", "โดเมน", "สแกนโดเมน: DNS, ซับโดเมน, SSL, พอร์ต"),
     ("4", "อีเมล", "สแกนอีเมล: Gravatar, MX, โดเมน, username"),
+    ("5", "ค้นลึก", "Deep Search: Google dorks, Reddit, GitHub, paste"),
+    ("6", "อาร์ไคฟ์", "ตรวจอาร์ไคฟ์: Wayback, archive.today, ลบแล้ว?"),
+    ("7", "โครงสร้าง", "Infra: CT logs, DNS, ซับโดเมน, WHOIS, Shodan"),
+    ("8", "ฟอเรนซิก", "วิเคราะห์รูป: steganography, ELA, ใบหน้า, deepfake"),
+    ("9", "พฤติกรรม", "วิเคราะห์พฤติกรรม: timezone, ตัวเขียน, emoji, สนใจ"),
+    ("10", "ภัยคุกคาม", "Threat Intel: IOC, STIX, MISP, Maltego export"),
+    ("11", "ความเป็นส่วนตัว", "ประเมินความเสี่ยง + คู่มือลดการรั่วไหล"),
+    ("12", "เคส", "Case mgmt: playbooks, notes, custody, annotations"),
+    ("13", "กราฟ", "สร้าง network graph จากผลค้น (D3.js)"),
+    ("14", "อัตโนมัติ", "Auto-investigate + scheduled scans + RSS feeds"),
 ]
 
 _ANSI = re.compile(r"\033\[[0-9;]*m")
@@ -121,13 +131,15 @@ def boot(site_count: int, module_count: int) -> None:
     if not C.on or not sys.stdout.isatty():
         return
     stages = [
-        ("โหลดฐานข้อมูลเว็บ", f"{site_count} เว็บ", 0.55),
-        ("โหลด scan modules", f"{module_count} modules", 0.5),
-        ("เตรียม Candidate engine", "sky123 → sky_123, sky.123, 123sky", 0.45),
-        ("เตรียม Verification", "title · redirect · canonical · username", 0.5),
-        ("เตรียม Correlation engine", "username · ชื่อ · bio · เว็บไซต์ · รูปโปรไฟล์", 0.55),
-        ("สร้าง Evidence graph", "username → บัญชี → โดเมน", 0.4),
-        ("ตรวจการเชื่อมต่อ", None, 0.45),
+        ("โหลดฐานข้อมูลเว็บ", f"{site_count} เว็บ", 0.45),
+        ("โหลด scan modules", f"{module_count} modules", 0.4),
+        ("เตรียม Candidate engine", "sky123 -> sky_123, sky.123, 123sky", 0.35),
+        ("เตรียม Verification", "title . redirect . canonical . username", 0.35),
+        ("เตรียม Correlation engine", "username . ชื่อ . bio . เว็บไซต์ . รูป", 0.4),
+        ("สร้าง Evidence graph", "username -> บัญชี -> โดเมน", 0.3),
+        ("โหลด v3 OSINT tools", "dorks . forensics . behavior . threat intel", 0.35),
+        ("โหลด Case management", "playbooks . notes . custody . annotations", 0.3),
+        ("ตรวจการเชื่อมต่อ", None, 0.35),
     ]
     total = sum(s[2] for s in stages)
     frame = 0
@@ -282,6 +294,154 @@ def do_scan(args: argparse.Namespace, kind: str) -> None:
     pause()
 
 
+def do_v3(args: argparse.Namespace, flag: str, title: str, note: str, prompt: str = "") -> None:
+    """Generic v3 tool launcher: sets the appropriate flag and calls run_v3_cli."""
+    section(title, note)
+    if prompt:
+        val = ask(prompt)
+        if not val:
+            return
+        setattr(args, flag, val)
+    else:
+        setattr(args, flag, True)
+    try:
+        run_v3_cli(args)
+    except KeyboardInterrupt:
+        print(C.yellow("\n  หยุดแล้ว"))
+    except Exception as e:
+        print(C.red(f"  Error: {e}"))
+    pause()
+
+
+def do_deepsearch(args: argparse.Namespace) -> None:
+    do_v3(args, "deepsearch", "ค้นลึก (Deep Search)",
+          "ค้น username/email บน Reddit, 4chan, GitHub, GitLab, paste, academic",
+          "target (username, email, หรือชื่อ)")
+
+
+def do_archive(args: argparse.Namespace) -> None:
+    do_v3(args, "archive", "ตรวจอาร์ไคฟ์ (Archive)",
+          "ตรวจ Wayback Machine, archive.today, Google Cache ว่าเคยมีหน้านี้หรือไม่",
+          "URL ที่ต้องการตรวจ")
+
+
+def do_infra(args: argparse.Namespace) -> None:
+    do_v3(args, "infra", "โครงสร้างพื้นฐาน (Infrastructure Intel)",
+          "CT logs, DNS, ซับโดเมน, WHOIS, IP geolocation, Shodan",
+          "โดเมน เช่น example.com")
+
+
+def do_forensics(args: argparse.Namespace) -> None:
+    do_v3(args, "forensics", "ฟอเรนซิก (Forensics)",
+          "วิเคราะห์รูป: LSB steganography, Error Level Analysis, ใบหน้า, deepfake indicators",
+          "URL ของรูปภาพ")
+
+
+def do_behavior(args: argparse.Namespace) -> None:
+    do_v3(args, "behavior", "พฤติกรรม (Behavioral Analysis)",
+          "วิเคราะห์ timezone, ตัวเขียน (stylometry), emoji fingerprint, ความสนใจ",
+          "ไฟล์ JSON ผลค้น (เช่น reports/user_*.json)")
+
+
+def do_threatintel(args: argparse.Namespace) -> None:
+    """Threat intelligence: IOC extraction + STIX/MISP/Maltego export."""
+    section("ภัยคุกคาม (Threat Intel)", "สกัด IOC, export STIX/MISP/Maltego จากผลค้น")
+    print(f"  {C.bold('เลือก:')}")
+    print(f"    [1] สกัด IOC จากข้อความ")
+    print(f"    [2] Export STIX 2.1 จาก JSON")
+    print(f"    [3] Export MISP จาก JSON")
+    print(f"    [4] Export Maltego จาก JSON")
+    sub = ask("เลือก 1-4", "1")
+    if sub == "1":
+        text = ask("ข้อความหรือ @ไฟล์")
+        if text:
+            args.iocs = text
+            run_v3_cli(args)
+    elif sub in ("2", "3", "4"):
+        fpath = ask("ไฟล์ JSON ผลค้น")
+        if fpath:
+            flag = {"2": "stix", "3": "misp", "4": "maltego"}[sub]
+            setattr(args, flag, fpath)
+            run_v3_cli(args)
+    pause()
+
+
+def do_privacy(args: argparse.Namespace) -> None:
+    """Privacy risk assessment + remediation."""
+    section("ความเป็นส่วนตัว (Privacy)", "ประเมินความเสี่ยงจากข้อมูลที่รั่วไหล + คู่มือลดการรั่วไหล")
+    print(f"  {C.bold('เลือก:')}")
+    print(f"    [1] ประเมินความเสี่ยงจาก JSON")
+    print(f"    [2] ดูคู่มือลดการรั่วไหลทั้งหมด")
+    sub = ask("เลือก 1-2", "1")
+    if sub == "1":
+        fpath = ask("ไฟล์ JSON ผลค้น")
+        if fpath:
+            args.privacy = fpath
+            run_v3_cli(args)
+    elif sub == "2":
+        args.remediation = True
+        run_v3_cli(args)
+    pause()
+
+
+def do_casemgmt(args: argparse.Namespace) -> None:
+    """Case management: playbooks, notes, custody, annotations."""
+    section("เคสการสอบสวน (Case Management)", "playbooks, notes, chain of custody, annotations")
+    print(f"  {C.bold('เลือก:')}")
+    print(f"    [1] ดู playbooks ทั้งหมด")
+    print(f"    [2] ดู playbook เฉพาะ")
+    print(f"    [3] จัดการ case notes")
+    print(f"    [4] จัดการ annotations")
+    print(f"    [5] ดู chain of custody")
+    sub = ask("เลือก 1-5", "1")
+    if sub == "1":
+        args.playbooks = True
+        run_v3_cli(args)
+    elif sub == "2":
+        cat = ask("หมวด (missing_person, fraud, identity_theft, threat_assessment, due_diligence)")
+        if cat:
+            args.playbook = cat
+            run_v3_cli(args)
+    elif sub == "3":
+        args.notes = True
+        run_v3_cli(args)
+    elif sub == "4":
+        args.annotations = True
+        run_v3_cli(args)
+    elif sub == "5":
+        args.custody = True
+        run_v3_cli(args)
+    pause()
+
+
+def do_graph(args: argparse.Namespace) -> None:
+    do_v3(args, "graph", "กราฟ (Network Graph)",
+          "สร้าง network graph JSON จากผลค้น (เปิดด้วย Web UI หรือ D3.js)",
+          "ไฟล์ JSON ผลค้น")
+
+
+def do_auto(args: argparse.Namespace) -> None:
+    """Auto-investigation + scheduled scans + RSS feeds."""
+    section("อัตโนมัติ (Automation)", "auto-investigate, scheduled scans, RSS feed monitor")
+    print(f"  {C.bold('เลือก:')}")
+    print(f"    [1] Auto-investigation planner จาก JSON")
+    print(f"    [2] ดู scheduled scans")
+    print(f"    [3] ตรวจ RSS/Atom feeds")
+    sub = ask("เลือก 1-3", "1")
+    if sub == "1":
+        fpath = ask("ไฟล์ JSON ผลค้น")
+        if fpath:
+            args.auto_investigate = fpath
+            run_v3_cli(args)
+    elif sub == "2":
+        args.schedules = True
+        run_v3_cli(args)
+    elif sub == "3":
+        args.feeds = True
+        run_v3_cli(args)
+    pause()
+
+
 def run_menu(args: argparse.Namespace, sites, all_sites) -> int:
     from .scan import get_modules
 
@@ -303,8 +463,28 @@ def run_menu(args: argparse.Namespace, sites, all_sites) -> int:
                 do_scan(args, "DOMAIN_NAME")
             elif choice == "4":
                 do_scan(args, "EMAIL")
+            elif choice == "5":
+                do_deepsearch(args)
+            elif choice == "6":
+                do_archive(args)
+            elif choice == "7":
+                do_infra(args)
+            elif choice == "8":
+                do_forensics(args)
+            elif choice == "9":
+                do_behavior(args)
+            elif choice == "10":
+                do_threatintel(args)
+            elif choice == "11":
+                do_privacy(args)
+            elif choice == "12":
+                do_casemgmt(args)
+            elif choice == "13":
+                do_graph(args)
+            elif choice == "14":
+                do_auto(args)
             elif choice:
-                input(C.yellow(f"  ไม่มีตัวเลือก \"{choice}\" กดเลข 0-4 นะ (Enter เพื่อลองใหม่)"))
+                input(C.yellow(f"  ไม่มีตัวเลือก \"{choice}\" กดเลข 0-14 นะ (Enter เพื่อลองใหม่)"))
         except (KeyboardInterrupt, EOFError):
             break
     print(C.dim("\n  ออกจากโปรแกรมแล้ว\n"))

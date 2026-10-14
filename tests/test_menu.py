@@ -20,7 +20,7 @@ def test_every_menu_row_fits_the_box():
 
 
 def test_navigation(monkeypatch, capsys):
-    answers = iter(["9", "", "4", "not-an-email", "", "0"])
+    answers = iter(["99", "", "4", "not-an-email", "", "0"])
     prompts = []
 
     def fake_input(prompt=""):
