@@ -421,6 +421,22 @@ python -m sleuth --self-check -s "ชื่อเว็บ"
 ระบบจะลองค้น username ใน `claimed` (ต้องได้ "พบ") และ username สุ่ม (ต้องได้ "ไม่พบ")
 ถ้าใส่ `--disable-broken` ระบบจะปิดเว็บที่ไม่ผ่านให้อัตโนมัติ
 
+## ความแม่น ความเป็นส่วนตัว และ API keys (v3.1)
+
+```bash
+python -m sleuth --benchmark        # วัดว่าให้คะแนน "คนเดียวกัน" แม่นแค่ไหน (AUC, precision/recall)
+python -m sleuth torvalds -f html --redact   # บันทึกรายงานแบบซ่อนอีเมล/เบอร์/รูป เพื่อแชร์ปลอดภัย
+python -m sleuth --purge-target ice4564       # ลบทุกอย่างของเป้าหมายนี้ออกจากเครื่อง
+python -m sleuth --purge-old 90               # ลบข้อมูลเก่ากว่า 90 วัน
+python -m sleuth --wipe-db                     # ล้างฐานข้อมูลทั้งหมด
+```
+
+- **ความแม่น:** [benchmark.py](sleuth/benchmark.py) วัดการแยก "คนเดียวกัน/คนละคน" — คะแนนความมั่นใจสูงแทบไม่เคยเหมาเอาคนละคนเป็นคนเดียวกัน (precision 1.00 ที่เกณฑ์สูง)
+- **ความเป็นส่วนตัว:** redact ซ่อน PII ทุกฟอร์แมต, ปุ่มลบข้อมูล/ล้างฐานข้อมูลในหน้า **Workspace** — ข้อมูลทั้งหมดอยู่ในเครื่องนี้ (`~/.sleuth/history.db`)
+- **API keys (ไม่บังคับ):** Shodan, GitHub token, HIBP, ipinfo — ตั้งผ่าน env (`SLEUTH_SHODAN_KEY` ฯลฯ) หรือหน้า Settings ใน Workspace · ไม่มี key ก็ใช้ส่วนใหญ่ได้ปกติ
+
+> v3.1 ยังยกเครื่องหน้าเว็บเป็นธีม **Cyber HUD** (ดู [RELEASE_NOTES_v3.1.md](RELEASE_NOTES_v3.1.md)) · โมดูล v3.0.0 เต็ม ๆ ดู [RELEASE_NOTES_v3.md](RELEASE_NOTES_v3.md)
+
 ## ทดสอบโค้ด
 
 ```bash

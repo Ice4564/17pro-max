@@ -6,7 +6,7 @@
 <title>Sleuth Workspace</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%232f6fed' stroke-width='3.5'/><path d='M19 19l8 8' stroke='%232f6fed' stroke-width='3.5' stroke-linecap='round'/></svg>">
 <script>try { const t = localStorage.getItem("sleuth-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<link rel="stylesheet" href="/static/theme.css?v=3.0.0">
+<link rel="stylesheet" href="/static/theme.css?v=3.1.0">
 <style>
 .hero { padding:30px 0 10px; position:relative; }
 .hero h1 { font-size:30px; margin:0 0 6px; letter-spacing:.3px;
@@ -137,7 +137,7 @@ textarea { width:100%; height:120px; padding:8px 10px; resize:vertical; font:inh
 </main>
 <footer>ข้อมูลทั้งหมดเก็บในเครื่องนี้ (~/.sleuth/history.db)</footer>
 
-<script src="/static/common.js?v=3.0.0"></script>
+<script src="/static/common.js?v=3.1.0"></script>
 <script>
 const J = (url, opts = {}) => fetch(url, { headers: { "Content-Type": "application/json" }, ...opts }).then((r) => {
   if (!r.ok) throw new Error(r.status + " " + r.statusText);

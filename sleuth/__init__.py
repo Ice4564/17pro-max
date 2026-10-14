@@ -13,4 +13,4 @@ real-time alerts (WebSocket/RSS/auto-investigation), and case management
 (playbooks/chain of custody/annotations).
 """
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"

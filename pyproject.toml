@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sleuth"
-version = "3.0.0"
+version = "3.1.0"
 description = "OSINT tool: find accounts, analyze profiles, export threat intel (Sherlock + Maigret + SpiderFoot style)"
 readme = "README.md"
 requires-python = ">=3.10"
