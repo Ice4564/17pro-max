@@ -500,6 +500,52 @@ class History:
         self.db.commit()
         return bool(n)
 
+    # ---- data retention / right to be forgotten -----------------------------------
+    def purge_target(self, username: str) -> dict[str, int]:
+        """Delete everything stored about one target (runs, snapshots, history, alerts).
+
+        Removes the username's own records and any run whose searched usernames
+        include it (so its discovered accounts and findings go too). Cases the
+        user created are kept, but the target is removed from their target list.
+        """
+        u = username.strip().lstrip("@").lower()
+        counts: dict[str, int] = {}
+        runs = [r["id"] for r in self.db.execute("SELECT id, usernames FROM runs")
+                if u in {n.lower() for n in json.loads(r["usernames"])}]
+        if runs:
+            marks = ",".join("?" * len(runs))
+            counts["runs"] = self.db.execute(f"DELETE FROM runs WHERE id IN ({marks})", runs).rowcount
+        for table in ("accounts", "snapshots", "changes", "usernames", "cache"):
+            col = "username" if table == "changes" else "user_key"
+            counts[table] = self.db.execute(f"DELETE FROM {table} WHERE lower({col})=?", (u,)).rowcount
+        counts["watchlist"] = self.db.execute("DELETE FROM watchlist WHERE lower(target)=?", (u,)).rowcount
+        counts["alerts"] = self.db.execute("DELETE FROM alerts WHERE lower(target)=?", (u,)).rowcount
+        self.db.execute("DELETE FROM case_targets WHERE lower(target)=?", (u,))
+        self.db.commit()
+        return {k: v for k, v in counts.items() if v}
+
+    def purge_older_than(self, days: float) -> dict[str, int]:
+        """Delete runs (and their snapshots/changes) and alerts older than ``days``."""
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=max(0.0, days))).isoformat(timespec="seconds")
+        counts = {
+            "runs": self.db.execute("DELETE FROM runs WHERE started < ?", (cutoff,)).rowcount,
+            "alerts": self.db.execute("DELETE FROM alerts WHERE created < ?", (cutoff,)).rowcount,
+            "cache": self.db.execute("DELETE FROM cache WHERE ts < ?",
+                                     ((datetime.now(timezone.utc) - timedelta(days=max(0.0, days))).timestamp(),)).rowcount,
+        }
+        # drop accounts/snapshots no longer referenced by any surviving run
+        counts["accounts"] = self.db.execute(
+            "DELETE FROM accounts WHERE last_run IS NOT NULL AND last_run NOT IN (SELECT id FROM runs)").rowcount
+        self.db.commit()
+        return {k: v for k, v in counts.items() if v}
+
+    def wipe(self) -> None:
+        """Erase the entire local database (every table)."""
+        for t in ("alerts", "watchlist", "case_runs", "case_targets", "cases", "relationships", "urls", "emails",
+                  "domains", "usernames", "cache", "changes", "snapshots", "accounts", "runs"):
+            self.db.execute(f"DELETE FROM {t}")
+        self.db.commit()
+
     # ---- intelligence search ------------------------------------------------------
     def intel_search(self, q: str, limit: int = 50) -> dict[str, list[dict[str, Any]]]:
         """Everything the database knows that matches ``q`` (username, site, domain, email, URL, text)."""

@@ -124,7 +124,7 @@ def create_app(db: str | None = None, history: str | None = None) -> web.Applica
                 "domains": dicts("domains"), "queries": dicts("queries"), "findings": dicts("findings"),
                 "timeline": dicts("timeline"), "changes": dicts("changes"), "summary": obj("summary"),
                 "entities": dicts("entities"), "contradictions": dicts("contradictions"), "plan": dicts("plan"),
-                "replay": dicts("replay"), "intel": obj("intel"),
+                "replay": dicts("replay"), "intel": obj("intel"), "redact": bool(data.get("redact")),
                 "search": {"hits": [h for h in search_data.get("hits", []) if isinstance(h, dict)],
                            "engines": [e for e in search_data.get("engines", []) if isinstance(e, dict)]},
                 "graph": {"nodes": [n for n in graph.get("nodes", []) if isinstance(n, dict)],
@@ -372,6 +372,20 @@ def add_workspace_routes(app: web.Application) -> None:
     app.router.add_delete("/api/watch/{target}", watch_delete)
     app.router.add_route("*", "/api/alerts", alerts)
     app.router.add_get("/api/intel", intel)
+    async def purge(request: web.Request) -> web.Response:
+        h = hist(request)
+        if request.match_info.get("target"):
+            return web.json_response({"deleted": h.purge_target(request.match_info["target"])})
+        data = await body(request)
+        if data.get("wipe"):
+            h.wipe()
+            return web.json_response({"wiped": True})
+        if data.get("old_days") is not None:
+            return web.json_response({"deleted": h.purge_older_than(float(data["old_days"]))})
+        raise web.HTTPBadRequest(text="specify target, old_days or wipe")
+
+    app.router.add_delete("/api/target/{target}", purge)
+    app.router.add_post("/api/purge", purge)
     app.router.add_post("/api/query", query)
 
 

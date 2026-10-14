@@ -520,6 +520,8 @@ svg.focus .gn:not(.near) { opacity:.25; } svg.focus .ge:not(.near) { opacity:.08
             <button type="button" data-export="csv"><b>CSV</b><span>ตารางบัญชี เปิดใน Excel</span></button>
             <button type="button" data-export="txt"><b>TXT</b><span>ข้อความล้วน</span></button>
           </div>
+          <label style="display:flex;gap:7px;align-items:center;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="redact"> 🛡️ ปิดบังข้อมูลส่วนตัว (ซ่อนอีเมล เบอร์โทร รูปโปรไฟล์) ก่อน export เพื่อแชร์อย่างปลอดภัย</label>
           <p class="note" id="exportNote"></p>
         </div>
       </div>
@@ -1464,7 +1466,8 @@ function reportBody() {
     identity: state.identity, connections: state.connections, clusters: state.clusters, domains: state.domains, graph: state.graph,
     queries: state.queries, findings: state.findings, timeline: state.timeline, changes: state.changes,
     search: state.search ? { hits: state.search.hits || [], engines: state.search.engines || [] } : {}, summary: state.summary,
-    entities: state.entities, contradictions: state.contradictions, plan: state.plan, replay: state.replay, intel: state.intel });
+    entities: state.entities, contradictions: state.contradictions, plan: state.plan, replay: state.replay, intel: state.intel,
+    redact: !!(document.getElementById("redact") && document.getElementById("redact").checked) });
 }
 function download(blob, name) {
   const a = el("a", { href: URL.createObjectURL(blob), download: name });

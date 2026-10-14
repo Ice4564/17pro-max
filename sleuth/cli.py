@@ -84,6 +84,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--changes", action="store_true",
                    help="show recorded profile changes (for the given usernames, or all), then exit")
     g.add_argument("--runs", action="store_true", help="list saved username searches, then exit")
+    g.add_argument("--purge-target", metavar="USERNAME", help="delete everything stored about this target, then exit")
+    g.add_argument("--purge-old", type=float, metavar="DAYS", help="delete stored runs/alerts older than DAYS, then exit")
+    g.add_argument("--wipe-db", action="store_true", help="erase the entire local history database, then exit")
     g.add_argument("--replay", type=int, metavar="RUN", help="show what the engine did in a saved run, step by step")
     g.add_argument("--intel", metavar="TEXT", help="search everything the local database knows (accounts, domains, "
                                                    "emails, URLs, relationships)")
@@ -105,6 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-f", "--format", default="",
                    help="report formats, comma separated: txt,csv,json,md,html,pdf or 'all' (pdf needs Chrome/Edge)")
     g.add_argument("--no-color", action="store_true", help="disable colours")
+    g.add_argument("--redact", action="store_true", help="hide e-mails, phone numbers and avatars in the saved report (for sharing)")
 
     g = p.add_argument_group("scan (SpiderFoot-style: domain, IP, email or username)")
     g.add_argument("--scan", metavar="TARGET", help="full OSINT scan of a domain, IP, email or username")
@@ -362,7 +366,7 @@ async def _run_search(args: argparse.Namespace, sites, all_sites, history) -> in
                 "findings": searcher.findings, "timeline": searcher.timeline, "changes": searcher.changes,
                 "search": searcher.search, "summary": searcher.summary, "entities": searcher.entities,
                 "contradictions": searcher.contradictions, "plan": searcher.plan, "replay": searcher.replay,
-                "intel": searcher.intel}
+                "intel": searcher.intel, "redact": getattr(args, "redact", False)}
         for fmt in formats:
             if fmt not in report.ALL_FORMATS:
                 print(C.red(f"unknown format: {fmt}"))
@@ -456,6 +460,15 @@ def run_workspace_cli(args: argparse.Namespace) -> int:
     from .history import History
     h = History()
     try:
+        if args.wipe_db:
+            h.wipe()
+            print("erased the entire local history database")
+        if args.purge_target:
+            counts = h.purge_target(args.purge_target)
+            print(f"deleted everything for {args.purge_target}: " + (", ".join(f"{v} {k}" for k, v in counts.items()) or "nothing found"))
+        if args.purge_old is not None:
+            counts = h.purge_older_than(args.purge_old)
+            print(f"deleted data older than {args.purge_old:g} days: " + (", ".join(f"{v} {k}" for k, v in counts.items()) or "nothing"))
         for t in args.watch_add or []:
             h.watch_add(t, args.watch_interval, {"depth": args.depth, "websearch": args.web_search})
             print(f"{C.green('+')} เพิ่ม {t} ใน watchlist (ตรวจทุก {args.watch_interval:g} ชั่วโมง)")
@@ -1086,7 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_v3_cli(args)
 
     if any((args.watch_add, args.watch_remove, args.watch_list, args.alerts, args.cases, args.intel,
-            args.replay)):
+            args.replay, args.purge_target, args.purge_old is not None, args.wipe_db)):
         return run_workspace_cli(args)
 
     if args.watch_run:

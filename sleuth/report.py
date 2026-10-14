@@ -29,6 +29,66 @@ FORMATS = ("txt", "csv", "json", "md", "html")  # text formats render() produces
 ALL_FORMATS = FORMATS + ("pdf", "xlsx")  # pdf needs a local Chrome/Edge; xlsx needs openpyxl
 
 
+# ---- redaction (hide PII before sharing a report) --------------------------------
+import copy as _copy
+import re as _re
+
+_EMAIL_RE = _re.compile(r"([A-Za-z0-9])([A-Za-z0-9._%+-]*)(@[A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+_PHONE_RE = _re.compile(r"(?<![\w.])(\+?\d[\d\s().-]{6,}\d)(?![\w])")
+
+
+def _mask_text(s: str) -> str:
+    """Mask e-mail local parts and long digit runs (phones) inside free text."""
+    if not isinstance(s, str) or not s:
+        return s
+    s = _EMAIL_RE.sub(lambda m: m.group(1) + "***" + m.group(3), s)
+    s = _PHONE_RE.sub(lambda m: _re.sub(r"\d", "•", m.group(1)[:-2]) + m.group(1)[-2:], s)
+    return s
+
+
+def _scrub(obj: Any) -> Any:
+    """Recursively mask e-mails and phone numbers in every string of a structure."""
+    if isinstance(obj, str):
+        return _mask_text(obj)
+    if isinstance(obj, list):
+        return [_scrub(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _scrub(v) for k, v in obj.items()}
+    return obj
+
+
+def _redact(results: list[dict[str, Any]], meta: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return copies with avatars/images removed and every e-mail / phone masked.
+
+    Used when a report is exported with ``meta["redact"]`` so it can be shared
+    without handing over the target's contact details or face. Structural PII
+    (avatar URLs, reverse-image links, mailto: links) is dropped; the recursive
+    scrub then guarantees no e-mail or phone survives anywhere in the text.
+    """
+    results = _copy.deepcopy(results)
+    meta = _copy.deepcopy(meta)
+    for r in results:
+        (r.get("info") or {}).pop("avatar", None)
+    for f in meta.get("findings", []) or []:
+        if f.get("kind") == "email":
+            f["url"] = ""
+        for e in f.get("evidence", []) or []:
+            if isinstance(e, dict) and str(e.get("url", "")).startswith("mailto:"):
+                e["url"] = ""
+    intel = meta.get("intel")
+    if isinstance(intel, dict):
+        intel["images"] = []
+    results = _scrub(results)
+    meta = _scrub(meta)
+    meta["_redacted"] = True
+    return results, meta
+
+
+def _maybe_redact(results, meta):
+    meta = meta or {}
+    return _redact(results, meta) if meta.get("redact") else (results, meta)
+
+
 def _found(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted((r for r in results if r["status"] == "found"),
                   key=lambda r: (r.get("depth", 0), r["username"].lower(), r["site"].lower()))
@@ -64,7 +124,7 @@ def _anchor(fid: str) -> str:
 
 
 def to_txt(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> str:
-    meta = meta or {}
+    results, meta = _maybe_redact(results, meta or {})
     lines: list[str] = []
     for r in _found(results):
         mark = " (linked)" if r.get("linked") else ""
@@ -112,6 +172,7 @@ def to_txt(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) ->
 
 
 def to_csv(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> str:
+    results, meta = _maybe_redact(results, meta or {})
     findings = {f["id"]: f for f in (meta or {}).get("findings", [])}
     buf = io.StringIO()
     w = csv.writer(buf)
@@ -131,8 +192,9 @@ def to_csv(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) ->
 
 
 def to_json(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> str:
+    results, meta = _maybe_redact(results, meta or {})
     clean = [{k: v for k, v in r.items() if k != "type"} for r in results]
-    return json.dumps({"meta": meta or {}, "results": clean}, indent=2, ensure_ascii=False)
+    return json.dumps({"meta": meta, "results": clean}, indent=2, ensure_ascii=False)
 
 
 # ---- Markdown -------------------------------------------------------------
@@ -141,13 +203,14 @@ def _md(text: Any) -> str:
 
 
 def to_md(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> str:
-    meta = meta or {}
+    results, meta = _maybe_redact(results, meta or {})
     found = _found(results)
     usernames = sorted({r["username"] for r in results}, key=str.lower)
     s = meta.get("summary") or {}
     when = meta.get("date") or datetime.now().strftime("%Y-%m-%d %H:%M")
     out = [f"# Sleuth Report: {', '.join(meta.get('usernames') or usernames)}", "",
            f"_สร้างเมื่อ {when} · ข้อมูลจากหน้าสาธารณะ อาจมีผลผิดพลาด ควรตรวจสอบก่อนนำไปใช้_", "",
+           *(["> 🛡️ **ปิดบังข้อมูลส่วนตัวแล้ว** (ซ่อนอีเมล เบอร์โทร และรูปโปรไฟล์ เพื่อการแชร์)", ""] if meta.get("_redacted") else []),
            "## สรุป", "", "| รายการ | จำนวน |", "|---|---:|",
            f"| บัญชีที่พบ | {s.get('accounts_found', len(found))} |",
            f"| บัญชีที่เชื่อมโยงกัน | {s.get('linked_accounts', 0)} |",
@@ -289,7 +352,7 @@ def _finding_html(f: dict[str, Any]) -> str:
 
 
 def to_html(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> str:
-    meta = meta or {}
+    results, meta = _maybe_redact(results, meta or {})
     found = _found(results)
     usernames = sorted({r["username"] for r in results}, key=str.lower)
     targets = meta.get("usernames") or (meta.get("summary") or {}).get("targets") or usernames
@@ -562,6 +625,7 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px; }}
 <main>
   <h1>Sleuth Report</h1>
   <p class="sub">เป้าหมาย: <b>{escape(', '.join(targets))}</b> · username ที่ค้นทั้งหมด {len(usernames)} ชื่อ · {escape(when)}</p>
+  {'<p class="note" style="border:1px solid var(--accent);border-radius:8px;padding:8px 12px;color:var(--text)">🛡️ ปิดบังข้อมูลส่วนตัวแล้ว — ซ่อนอีเมล เบอร์โทร และรูปโปรไฟล์ เพื่อให้แชร์รายงานได้ปลอดภัย</p>' if meta.get('_redacted') else ''}
   <section class="stats">{stats}</section>
   {'<section class="warnbox"><h2>⚠ Contradictory evidence detected</h2><p class="note" style="margin:0 0 6px">Do not treat these profiles as confirmed identity. อย่าเพิ่งสรุปว่าบัญชีเหล่านี้เป็นคนเดียวกัน</p>' + contra_html + '</section>' if contra_html else ''}
   <nav class="toc">{''.join(f'<a href="#{a}">{t}</a>' for a, t, ok in (
@@ -758,6 +822,7 @@ def write(fmt: str, results: list[dict[str, Any]], path: Path, meta: dict[str, A
 
 
 def to_xlsx(results: list[dict[str, Any]], meta: dict[str, Any] | None = None) -> bytes:
+    results, meta = _maybe_redact(results, meta or {})
     """Export results as an Excel workbook with multiple sheets.
 
     Requires openpyxl: pip install openpyxl

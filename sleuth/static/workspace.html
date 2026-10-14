@@ -92,6 +92,21 @@ textarea { width:100%; height:120px; padding:8px 10px; resize:vertical; font:inh
         </form>
         <div class="res" id="intelRes"></div>
       </div>
+      <div class="panel">
+        <h2>ความเป็นส่วนตัว / ลบข้อมูล</h2>
+        <p class="sub">ข้อมูลทั้งหมดอยู่ในเครื่องนี้ ลบเมื่อไรก็ได้ · ลบแล้วกู้คืนไม่ได้</p>
+        <form class="row2" id="purgeForm" autocomplete="off">
+          <input id="purgeTarget" placeholder="username ที่จะลบทุกอย่าง" spellcheck="false">
+          <button class="btn ghost small" type="submit">ลบข้อมูลของเป้าหมายนี้</button>
+        </form>
+        <div class="row2">
+          <select id="purgeOld"><option value="30">เก่ากว่า 30 วัน</option><option value="90">เก่ากว่า 90 วัน</option><option value="7">เก่ากว่า 7 วัน</option></select>
+          <button class="btn ghost small" type="button" id="purgeOldBtn">ลบข้อมูลเก่า</button>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn ghost small" type="button" id="wipeBtn" style="border-color:var(--bad);color:var(--bad)">ล้างฐานข้อมูลทั้งหมด</button>
+        </div>
+        <p class="note" id="purgeNote"></p>
+      </div>
     </div>
 
     <div class="col">
@@ -245,6 +260,23 @@ $("caseForm").onsubmit = async (e) => {
   $("cName").value = ""; $("cTargets").value = ""; await loadCases(); showCase(r.id);
 };
 $("intelForm").onsubmit = (e) => { e.preventDefault(); if ($("intelQ").value.trim()) intel($("intelQ").value.trim()); };
+const purgeMsg = (c) => Object.keys(c.deleted || {}).length ? "ลบแล้ว: " + Object.entries(c.deleted).map(([k, v]) => `${v} ${k}`).join(", ") : (c.wiped ? "ล้างฐานข้อมูลแล้ว" : "ไม่พบข้อมูลที่ตรงกัน");
+$("purgeForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const t = $("purgeTarget").value.trim().replace(/^@/, "");
+  if (!t || !confirm(`ลบข้อมูลทั้งหมดของ "${t}" ? กู้คืนไม่ได้`)) return;
+  const r = await J("/api/target/" + encodeURIComponent(t), { method: "DELETE" });
+  $("purgeTarget").value = ""; $("purgeNote").textContent = purgeMsg(r); refresh();
+};
+$("purgeOldBtn").onclick = async () => {
+  const d = Number($("purgeOld").value);
+  if (!confirm(`ลบข้อมูลที่เก่ากว่า ${d} วัน ? กู้คืนไม่ได้`)) return;
+  $("purgeNote").textContent = purgeMsg(await J("/api/purge", { method: "POST", body: JSON.stringify({ old_days: d }) })); refresh();
+};
+$("wipeBtn").onclick = async () => {
+  if (!confirm("ล้างฐานข้อมูลทั้งหมด? ลบประวัติ เคส และ watchlist ทุกอย่าง กู้คืนไม่ได้") || !confirm("แน่ใจจริง ๆ นะ?")) return;
+  $("purgeNote").textContent = purgeMsg(await J("/api/purge", { method: "POST", body: JSON.stringify({ wipe: true }) })); refresh();
+};
 fetch("/api/sites").then((r) => r.json()).then((r) => ($("meta").textContent = `v${r.version} · ${r.sites.length} เว็บ`)).catch(() => {});
 refresh();
 setInterval(() => { loadWatch(); loadAlerts(); }, 30000);
