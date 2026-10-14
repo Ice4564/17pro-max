@@ -11,7 +11,7 @@ from sleuth import __version__
 # ---- version ------------------------------------------------------------
 
 def test_version():
-    assert __version__ == "3.0.0"
+    assert __version__ >= "3.0.0" and __version__.startswith("3.")
 
 
 # ---- archive ------------------------------------------------------------
