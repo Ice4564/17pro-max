@@ -107,6 +107,12 @@ textarea { width:100%; height:120px; padding:8px 10px; resize:vertical; font:inh
         </div>
         <p class="note" id="purgeNote"></p>
       </div>
+      <div class="panel">
+        <h2>API keys (ไม่บังคับ)</h2>
+        <p class="sub">ส่วนใหญ่ใช้ได้โดยไม่ต้องมี key · ใส่เพิ่มเพื่อปลดล็อกบางแหล่ง (เก็บในเครื่อง, ตั้งผ่าน env ได้)</p>
+        <div id="keysList"></div>
+        <p class="note" id="keysNote"></p>
+      </div>
     </div>
 
     <div class="col">
@@ -245,7 +251,24 @@ async function intel(q) {
   $("intelRes").replaceChildren(...(nodes.length ? nodes : [el("p", { class: "empty-s" }, "ไม่พบในฐานข้อมูล")]));
 }
 
-function refresh() { loadStats(); loadAlerts(); loadWatch(); loadCases(); loadRuns(); if (openCase) showCase(openCase); }
+async function loadKeys() {
+  const r = await J("/api/settings").catch(() => ({ status: {} }));
+  const box = $("keysList");
+  box.replaceChildren(...Object.entries(r.status || {}).map(([name, k]) => {
+    const inp = el("input", { type: "password", placeholder: k.set ? "•••••• (ตั้งแล้ว" + (k.source === "env" ? " ผ่าน env)" : ")") : "ยังไม่ได้ตั้ง", spellcheck: "false" });
+    if (k.source === "env") inp.disabled = true;
+    const save = el("button", { type: "button", class: "btn ghost small" }, "บันทึก");
+    save.onclick = async () => {
+      const res = await J("/api/settings", { method: "POST", body: JSON.stringify({ keys: { [name]: inp.value } }) });
+      inp.value = ""; $("keysNote").textContent = `${k.label}: ${res.status[name].set ? "ตั้งแล้ว" : "ลบแล้ว"}`; loadKeys();
+    };
+    return el("div", { class: "item" }, el("div", { class: "top" }, el("b", {}, k.label),
+      el("span", { class: k.set ? "risk LOW" : "" , style: "font-size:11px" }, k.set ? "ตั้งแล้ว" : "—"),
+      el("span", { class: "acts" }, inp, k.source === "env" ? "" : save)),
+      el("div", { class: "s" }, `${k.unlocks} · env: ${k.env}`));
+  }));
+}
+function refresh() { loadStats(); loadAlerts(); loadWatch(); loadCases(); loadRuns(); loadKeys(); if (openCase) showCase(openCase); }
 
 $("watchForm").onsubmit = async (e) => {
   e.preventDefault();

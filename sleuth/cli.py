@@ -873,7 +873,8 @@ def _cmd_infra(args: argparse.Namespace) -> int:
 
     async def _run():
         async with aiohttp.ClientSession() as session:
-            return await infra_scan(session, args.infra)
+            from .settings import get_key
+            return await infra_scan(session, args.infra, shodan_key=get_key("shodan"))
 
     print(f"{C.cyan('[*]')} Infrastructure scan of {C.bold(args.infra)}...\n")
     result = asyncio.run(_run())

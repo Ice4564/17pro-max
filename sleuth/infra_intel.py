@@ -180,13 +180,11 @@ async def shodan_lookup(
 
     Without a key, returns basic info only (using the free endpoint).
     """
-    if api_key:
-        url = f"{SHODAN_API}/shodan/host/{ip}"
-        params = {"key": api_key}
-    else:
-        # Free endpoint — limited but no key needed
-        url = f"{SHODAN_API}/shodan/host/{ip}"
-        params = {}
+    if not api_key:
+        # the host endpoint needs a key; don't spend a request that can only fail
+        return ShodanResult(ip=ip, error="ต้องมี Shodan API key (ตั้งในหน้า Settings)")
+    url = f"{SHODAN_API}/shodan/host/{ip}"
+    params = {"key": api_key}
 
     try:
         async with session.get(

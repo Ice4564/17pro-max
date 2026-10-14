@@ -386,6 +386,16 @@ def add_workspace_routes(app: web.Application) -> None:
 
     app.router.add_delete("/api/target/{target}", purge)
     app.router.add_post("/api/purge", purge)
+
+    async def settings_view(request: web.Request) -> web.Response:
+        from . import settings as st
+        if request.method == "POST":
+            data = await body(request)
+            keys = data.get("keys") if isinstance(data.get("keys"), dict) else {}
+            return web.json_response({"status": st.save_keys(keys)})
+        return web.json_response({"status": st.status()})
+
+    app.router.add_route("*", "/api/settings", settings_view)
     app.router.add_post("/api/query", query)
 
 
@@ -703,7 +713,8 @@ def add_v3_routes(app: web.Application) -> None:
             raise web.HTTPBadRequest(text="missing or invalid ?domain=")
         from .engine import make_session, SearchConfig
         async with make_session(SearchConfig()) as session:
-            result = await infra_scan(session, domain)
+            from .settings import get_key
+            result = await infra_scan(session, domain, shodan_key=get_key("shodan"))
         # Convert dataclasses to dicts
         def _to_dict(obj):
             if hasattr(obj, "__dict__"):
