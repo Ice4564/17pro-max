@@ -57,6 +57,14 @@ def emails_in_text(text: str) -> set[str]:
     return out
 
 
+def crypto_ids_of(r: dict[str, Any]) -> set[str]:
+    """ENS names (``sky.eth``) and Ethereum addresses the owner published."""
+    from .crypto import extract_ens_from_text, extract_eth_addresses_from_text
+    text = " ".join(str(v) for v in (r.get("info") or {}).values() if isinstance(v, str))
+    text += " " + " ".join(str(x) for x in r.get("links", []) if isinstance(x, str))
+    return {e.lower() for e in extract_ens_from_text(text)} | {a.lower() for a in extract_eth_addresses_from_text(text)}
+
+
 def emails_of(r: dict[str, Any]) -> set[str]:
     """E-mail addresses the owner published on a profile (info fields, bio, mailto: links)."""
     texts = [v for v in (r.get("info") or {}).values() if isinstance(v, str)]
@@ -210,6 +218,12 @@ def compare(a: dict[str, Any], b: dict[str, Any],
             signals.append(_signal("email", "อีเมลอยู่บนโดเมนเว็บของอีกบัญชี", True, "@" + sorted(cross)[0], p=0.45))
         elif ea and eb:
             signals.append(_signal("email", "อีเมลต่างกัน", False, f"{sorted(ea)[0]} / {sorted(eb)[0]}"))
+
+    # crypto / ENS identifiers published on both profiles (a wallet or .eth name
+    # is personal and near-unique, so sharing one is strong — like an e-mail)
+    ca, cb = crypto_ids_of(a), crypto_ids_of(b)
+    if ca & cb:
+        signals.append(_signal("crypto", "ใช้ ID คริปโตเดียวกัน", True, sorted(ca & cb)[0], p=0.7))
 
     ha, hb = hashes.get(_key(a)), hashes.get(_key(b))
     if ha is not None and hb is not None:

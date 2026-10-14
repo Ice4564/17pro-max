@@ -123,6 +123,8 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-browser", action="store_true", help="don't open the browser automatically with --web")
     g.add_argument("--self-check", action="store_true", help="test every site's detection rule against the live site")
     g.add_argument("--disable-broken", action="store_true", help="with --self-check: mark failing sites disabled in the DB")
+    g.add_argument("--benchmark", action="store_true",
+                   help="measure how well identity scoring separates same-person from different-person (accuracy), then exit")
     g.add_argument("--version", action="version", version=f"sleuth {__version__}")
 
     g = p.add_argument_group("v3 OSINT tools (advanced)")
@@ -1148,6 +1150,15 @@ def main(argv: list[str] | None = None) -> int:
         from .web import serve
         serve(args.host, args.port, args.db, open_browser=not args.no_browser)
         return 0
+
+    if args.benchmark:
+        from .benchmark import format_report, run
+        result = run()
+        print(format_report(result))
+        ok = result["auc"] >= 0.85 and result["thresholds"][0]["precision"] >= 0.95
+        print(f"\n{C.green('PASS') if ok else C.yellow('CHECK')}: "
+              f"AUC {result['auc']:.3f}, high-confidence precision {result['thresholds'][0]['precision']:.2f}")
+        return 0 if ok else 2
 
     if args.self_check:
         if args.disable_broken and args.db is None:
